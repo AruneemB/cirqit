@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="100" height="32" viewBox="0 0 100 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon centered vertically at cy=16 -->
+<svg width="75" height="32" viewBox="0 0 75 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 
+    Icon Part:
+    - Emblem is 30px wide (r=15, centered at 16)
+    - Left margin: 1px (16 - 15)
+  -->
   <circle cx="16" cy="16" r="15" fill="#1E1534" />
   <circle cx="16" cy="16" r="13" stroke="#5A31F4" stroke-width="1.2" />
   <ellipse cx="16" cy="16" rx="13" ry="4" stroke="#A89DC8" stroke-width="0.8" stroke-opacity="0.2" />
@@ -19,9 +23,9 @@
 
   <!-- 
     Text: "cirqit" 
-    - Tightened width to 100 to remove trailing space.
-    - Vertical alignment centered using y=22.5.
-    - Gap reduced for a compact look.
+    - Width tightened to 75 to eliminate all trailing space.
+    - x="32" for a precise 1px gap from the emblem.
+    - Right margin matches the 1px left margin.
   -->
-  <text x="36" y="22.5" font-family="'Charter', 'Baskerville', 'Georgia', serif" font-size="20" fill="#C6B5FF" font-weight="400" letter-spacing="-0.015em">cirqit</text>
+  <text x="32" y="22" font-family="'Charter', 'Baskerville', 'Georgia', serif" font-size="20" fill="#C6B5FF" font-weight="400" letter-spacing="-0.03em">cirqit</text>
 </svg>
