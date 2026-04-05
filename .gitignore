@@ -6,6 +6,7 @@
 
 # Project docs (non-source)
 CIRQIT-SPEC.md
+CIRQIT-INSIGHTS.md
 
 # Python
 __pycache__/
