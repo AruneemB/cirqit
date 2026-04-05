@@ -1,6 +1,6 @@
 <p align="center">
-  <img src="favicon.svg" width="250" />
+  <img src="logo.svg" width="400" />
 </p>
 
 # cirqit
-Quantum, made visible.
+*Quantum, made visible.*
