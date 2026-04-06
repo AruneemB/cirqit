@@ -18,8 +18,6 @@ desktop.ini
 # --- Documentation & Design ---
 # Internal design docs
 docs/
-CIRQIT-SPEC.md
-CIRQIT-INSIGHTS.md
 
 # --- Node.js ---
 # Dependencies
