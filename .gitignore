@@ -5,6 +5,7 @@
 .vscode/
 
 # Project docs (non-source)
+docs/
 CIRQIT-SPEC.md
 CIRQIT-INSIGHTS.md
 
