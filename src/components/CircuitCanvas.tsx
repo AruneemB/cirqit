@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useEffect } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -7,6 +7,8 @@ import ReactFlow, {
 } from 'react-flow-renderer'
 import { useCircuitStore } from '../store/circuitStore'
 import { GateNode } from './GateNode'
+import { executeStatevector } from '../services/api'
+import { ExecutionStatus } from './ExecutionStatus'
 
 const nodeTypes = {
   gate: GateNode,
@@ -15,6 +17,21 @@ const nodeTypes = {
 export const CircuitCanvas: React.FC = () => {
   const circuit = useCircuitStore((state) => state.circuit)
   const addGate = useCircuitStore((state) => state.addGate)
+
+  const execute = useCallback(async () => {
+    try {
+      const result = await executeStatevector(useCircuitStore.getState().circuit)
+      useCircuitStore.getState().setExecutionResult(result)
+    } catch (err) {
+      console.error('Simulation failed:', err)
+    }
+  }, [])
+
+  // Use a debounced effect to run simulation when gates change
+  useEffect(() => {
+    const timeout = setTimeout(execute, 300)
+    return () => clearTimeout(timeout)
+  }, [circuit.gates, execute])
 
   // Convert circuit gates to React Flow nodes
   const nodes: Node[] = useMemo(() => {
@@ -82,6 +99,7 @@ export const CircuitCanvas: React.FC = () => {
       >
         <Background color="#1A1F35" gap={20} />
         <Controls className="bg-surface border border-white/8 rounded-lg" />
+        <ExecutionStatus />
 
         {/* Qubit wires */}
         <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
