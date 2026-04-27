@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useCircuitStore } from '../store/circuitStore'
-import { exportQiskitCode } from '../services/api'
+import { exportQiskitCode, narrateCode } from '../services/api'
 
 interface CodeExportModalProps {
   isOpen: boolean
@@ -13,6 +13,8 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
   const circuit = useCircuitStore((state) => state.circuit)
   const [code, setCode] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isNarrating, setIsNarrating] = useState(false)
+  const [addNarration, setAddNarration] = useState(false)
   const [copied, setCopied] = useState(false)
 
   React.useEffect(() => {
@@ -25,11 +27,33 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
     setIsLoading(true)
     try {
       const result = await exportQiskitCode(circuit)
-      setCode(result.code)
+      if (addNarration) {
+        setIsLoading(false)
+        setIsNarrating(true)
+        try {
+          const narrated = await narrateCode(result.code, result.language)
+          setCode(narrated.annotated_code)
+        } catch {
+          setCode(result.code)
+        } finally {
+          setIsNarrating(false)
+        }
+      } else {
+        setCode(result.code)
+      }
     } catch (error) {
       alert('Export failed: ' + (error as Error).message)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleToggleNarration = (enabled: boolean) => {
+    setAddNarration(enabled)
+    // Re-fetch with new narration setting if code already loaded
+    if (code) {
+      setCode('')
+      setTimeout(() => fetchCode(), 0)
     }
   }
 
@@ -65,9 +89,11 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[60vh]">
-          {isLoading ? (
+          {isLoading || isNarrating ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-text-secondary">Generating code...</div>
+              <div className="text-text-secondary">
+                {isNarrating ? 'Adding quantum comments...' : 'Generating code...'}
+              </div>
             </div>
           ) : (
             <div className="relative">
@@ -88,7 +114,16 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
           )}
         </div>
 
-        <div className="flex justify-end gap-3 p-6 border-t border-violet-soft/20">
+        <div className="flex items-center justify-between gap-3 p-6 border-t border-violet-soft/20">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={addNarration}
+              onChange={(e) => handleToggleNarration(e.target.checked)}
+              className="w-4 h-4 rounded border-violet-soft/40 accent-accent"
+            />
+            <span className="text-sm text-text-secondary">Add explanatory comments</span>
+          </label>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-glass border border-violet-soft/20 text-text-primary rounded-lg hover:bg-glass/80 transition-colors"
