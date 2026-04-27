@@ -30,7 +30,9 @@ test('build and export a Bell state', async ({ page }) => {
   })
 
   // 4. Open the export modal
-  await page.getByTestId('export-btn').click()
+  const exportButton = page.getByTestId('export-btn')
+  await expect(exportButton).toBeEnabled()
+  await exportButton.click()
   await expect(page.getByTestId('export-modal-title')).toContainText('Export Qiskit Code')
 
   // 5. Verify the generated code contains a Qiskit QuantumCircuit
