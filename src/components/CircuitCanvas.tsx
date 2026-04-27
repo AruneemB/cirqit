@@ -97,8 +97,8 @@ export const CircuitCanvas: React.FC = () => {
         fitView
         className="bg-bg"
       >
-        <Background color="#1A1F35" gap={20} />
-        <Controls className="bg-surface border border-white/8 rounded-lg" />
+        <Background color="#2A1B4A" gap={20} />
+        <Controls className="bg-panel border border-violet-soft/20 rounded-lg" />
         <ExecutionStatus />
 
         {/* Qubit wires */}
@@ -112,11 +112,11 @@ export const CircuitCanvas: React.FC = () => {
                   y1={y}
                   x2="100%"
                   y2={y}
-                  stroke="#9CA3AF"
+                  stroke="#A89DC8"
                   strokeWidth={2}
-                  opacity={0.3}
+                  opacity={0.4}
                 />
-                <text x={10} y={y - 10} fill="#9CA3AF" fontSize={12} fontFamily="monospace">
+                <text x={10} y={y - 10} fill="#C6B5FF" fontSize={12} fontFamily="monospace">
                   q{i}
                 </text>
               </g>
