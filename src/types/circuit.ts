@@ -31,3 +31,16 @@ export interface ExecutionResult {
   counts?: Record<string, number>  // Measurement outcomes
   executedAt: string
 }
+
+export type PatchOp =
+  | { op: 'add_gate'; type: GateType; qubits: number[]; params?: number[] }
+  | { op: 'remove_gate'; gate_id: string }
+  | { op: 'move_gate'; gate_id: string; to_qubit: number; to_time_step: number }
+  | { op: 'set_param'; gate_id: string; params: number[] }
+
+export interface CircuitPatch {
+  action: 'patch_circuit' | 'error'
+  ops: PatchOp[]
+  explanation: string
+  confidence: number
+}
