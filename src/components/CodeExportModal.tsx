@@ -43,8 +43,8 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-surface backdrop-blur-xl border border-white/8 rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-white/8">
+      <div className="bg-panel backdrop-blur-xl border border-violet-soft/20 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-violet-soft/20">
           <div>
             <h2 className="text-2xl font-heading font-bold text-text-primary">
               Export Qiskit Code
@@ -73,7 +73,7 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
             <div className="relative">
               <button
                 onClick={handleCopy}
-                className="absolute top-2 right-2 z-10 px-3 py-1 bg-primary/20 hover:bg-primary/30 text-primary text-sm rounded-md transition-colors"
+                className="absolute top-2 right-2 z-10 px-3 py-1 bg-accent/20 hover:bg-accent/30 text-accent text-sm rounded-md transition-colors"
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
@@ -88,10 +88,10 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
           )}
         </div>
 
-        <div className="flex justify-end gap-3 p-6 border-t border-white/8">
+        <div className="flex justify-end gap-3 p-6 border-t border-violet-soft/20">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-surface border border-white/8 text-text-primary rounded-lg hover:bg-white/5 transition-colors"
+            className="px-4 py-2 bg-glass border border-violet-soft/20 text-text-primary rounded-lg hover:bg-glass/80 transition-colors"
           >
             Close
           </button>
