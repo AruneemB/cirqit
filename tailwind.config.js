@@ -4,15 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#00D9FF',
-        secondary: '#A78BFA',
-        success: '#34D399',
-        warning: '#FBBF24',
-        error: '#F87171',
-        bg: '#0A0F1E',
-        surface: 'rgba(26, 31, 53, 0.6)',
-        'text-primary': '#F9FAFB',
-        'text-secondary': '#9CA3AF',
+        primary:          '#5A31F4',
+        accent:           '#8A64FF',
+        glow:             '#B48EFF',
+        'violet-soft':    '#C6B5FF',
+        bg:               '#2A1B4A',
+        panel:            '#1E1534',
+        glass:            'rgba(255,255,255,0.06)',
+        'text-primary':   '#E9E4FF',
+        'text-secondary': '#A89DC8',
+        success:          '#34D399',
+        warning:          '#FBBF24',
+        error:            '#F87171',
       },
       fontFamily: {
         heading: ['"Space Grotesk"', 'sans-serif'],

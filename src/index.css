@@ -4,8 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --violet-primary:   #5A31F4;
+  --violet-bright:    #8A64FF;
+  --violet-soft:      #C6B5FF;
+  --neon-accent:      #B48EFF;
+  --bg-deep:          #2A1B4A;
+  --bg-panel:         #1E1534;
+  --bg-glass:         rgba(255, 255, 255, 0.06);
+  --text-primary:     #E9E4FF;
+  --text-secondary:   #A89DC8;
+}
+
 body {
   @apply bg-bg text-text-primary font-body;
   margin: 0;
   padding: 0;
+}
+
+@layer components {
+  .glass-panel {
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(198, 181, 255, 0.2);
+  }
+
+  .neon-glow {
+    box-shadow: 0 0 12px rgba(180, 142, 255, 0.45);
+  }
 }
