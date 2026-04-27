@@ -12,10 +12,10 @@ const GateButton: React.FC<GateButtonProps> = ({ type, label, description, onDra
   <div
     draggable
     onDragStart={() => onDragStart(type)}
-    className="w-20 h-20 bg-surface border border-white/8 rounded-lg flex flex-col items-center justify-center cursor-grab active:cursor-grabbing hover:border-primary/50 hover:shadow-[0_0_15px_rgba(0,217,255,0.2)] transition-all group"
+    className="w-20 h-20 bg-glass border border-violet-soft/20 rounded-lg flex flex-col items-center justify-center cursor-grab active:cursor-grabbing hover:border-accent/50 hover:shadow-[0_0_12px_rgba(180,142,255,0.45)] transition-all group"
     title={description}
   >
-    <span className="text-2xl font-mono font-bold text-primary group-hover:scale-110 transition-transform">
+    <span className="text-2xl font-mono font-bold text-accent group-hover:scale-110 transition-transform">
       {label}
     </span>
     <span className="text-[10px] text-text-secondary mt-1 uppercase tracking-tighter">
@@ -52,7 +52,7 @@ export const GatePalette: React.FC = () => {
   const categories = Array.from(new Set(gates.map((g) => g.category)))
 
   return (
-    <div className="w-64 h-full bg-surface/40 backdrop-blur-xl border-r border-white/8 p-4 overflow-y-auto">
+    <div className="w-64 h-full bg-panel backdrop-blur-xl border-r border-violet-soft/20 p-4 overflow-y-auto">
       <h2 className="text-xl font-heading font-bold text-text-primary mb-4">Gate Palette</h2>
 
       {categories.map((category) => (
