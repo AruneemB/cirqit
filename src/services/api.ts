@@ -66,6 +66,28 @@ export async function buildCircuit(text: string, circuit: Circuit): Promise<Circ
   return response.json()
 }
 
+export interface NarrateCodeResponse {
+  annotated_code: string
+}
+
+export async function narrateCode(
+  code: string,
+  language: string,
+  circuitIntent?: string
+): Promise<NarrateCodeResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/llm/narrate-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, language, circuit_intent: circuitIntent }),
+  })
+
+  if (!response.ok) {
+    throw new ApiError('Narration failed', response.status, await response.json().catch(() => ({})))
+  }
+
+  return response.json()
+}
+
 export async function explainGate(gateType: string, context?: string): Promise<ExplanationResponse> {
   const response = await fetch(`${API_BASE_URL}/api/llm/explain-gate`, {
     method: 'POST',
