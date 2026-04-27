@@ -25,32 +25,32 @@ export const ProbabilityHistogram: React.FC<ProbabilityHistogramProps> = ({ stat
     }))
 
   return (
-    <div className="w-full bg-surface/40 border border-white/8 rounded-xl p-4">
-      <h3 className="text-sm font-medium text-white/70 mb-3">Measurement Probabilities</h3>
+    <div className="w-full bg-glass border border-violet-soft/20 rounded-xl p-4">
+      <h3 className="text-sm font-medium text-text-secondary mb-3">Measurement Probabilities</h3>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(198,181,255,0.1)" />
           <XAxis
             dataKey="basis"
-            tick={{ fill: '#9CA3AF', fontSize: 12 }}
-            axisLine={{ stroke: 'rgba(255,255,255,0.15)' }}
+            tick={{ fill: '#A89DC8', fontSize: 12 }}
+            axisLine={{ stroke: 'rgba(198,181,255,0.2)' }}
           />
           <YAxis
-            tick={{ fill: '#9CA3AF', fontSize: 12 }}
-            axisLine={{ stroke: 'rgba(255,255,255,0.15)' }}
+            tick={{ fill: '#A89DC8', fontSize: 12 }}
+            axisLine={{ stroke: 'rgba(198,181,255,0.2)' }}
             domain={[0, 100]}
             unit="%"
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1e1e2e',
-              border: '1px solid rgba(255,255,255,0.1)',
+              backgroundColor: '#1E1534',
+              border: '1px solid rgba(198,181,255,0.2)',
               borderRadius: '8px',
-              color: '#fff',
+              color: '#E9E4FF',
             }}
             formatter={(value: number) => [`${value}%`, 'Probability']}
           />
-          <Bar dataKey="probability" fill="#34D399" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="probability" fill="#8A64FF" radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

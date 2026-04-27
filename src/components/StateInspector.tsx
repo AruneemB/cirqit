@@ -10,7 +10,7 @@ export const StateInspector: React.FC = () => {
 
   if (!executionResult?.statevector) {
     return (
-      <div className="w-96 h-full bg-surface/40 backdrop-blur-xl border-l border-white/8 p-6 flex items-center justify-center">
+      <div className="w-96 h-full bg-panel backdrop-blur-xl border-l border-violet-soft/20 p-6 flex items-center justify-center">
         <div className="text-center text-text-secondary">
           <svg
             className="w-16 h-16 mx-auto mb-4 opacity-50"
@@ -36,7 +36,7 @@ export const StateInspector: React.FC = () => {
   const numQubits = circuit.numQubits
 
   return (
-    <div className="w-96 h-full bg-surface/40 backdrop-blur-xl border-l border-white/8 overflow-y-auto">
+    <div className="w-96 h-full bg-panel backdrop-blur-xl border-l border-violet-soft/20 overflow-y-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div>
@@ -79,7 +79,7 @@ export const StateInspector: React.FC = () => {
           <h3 className="text-sm font-heading font-semibold text-text-secondary mb-3 uppercase tracking-wide">
             Raw Statevector
           </h3>
-          <div className="bg-bg/50 rounded-lg p-4 font-mono text-xs max-h-64 overflow-y-auto">
+          <div className="bg-bg/30 rounded-lg p-4 font-mono text-xs max-h-64 overflow-y-auto border border-violet-soft/10">
             {statevector.map((amp, idx) => {
               const basisState = idx.toString(2).padStart(numQubits, '0')
               const real = amp[0].toFixed(4)

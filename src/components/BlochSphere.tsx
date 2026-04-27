@@ -36,10 +36,10 @@ const StateVector: React.FC<{ theta: number; phi: number }> = ({ theta, phi }) =
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial attach="material" color="#00D9FF" linewidth={3} />
+        <lineBasicMaterial attach="material" color="#8A64FF" linewidth={3} />
       </line>
       <Sphere args={[0.05]} position={[x, y, z]}>
-        <meshStandardMaterial color="#00D9FF" emissive="#00D9FF" emissiveIntensity={2} />
+        <meshStandardMaterial color="#B48EFF" emissive="#B48EFF" emissiveIntensity={2} />
       </Sphere>
     </group>
   )
@@ -49,7 +49,7 @@ export const BlochSphere: React.FC<BlochSphereProps> = ({ statevector }) => {
   const { theta, phi } = statevectorToBlochAngles(statevector)
 
   return (
-    <div className="w-full h-64 bg-surface/20 rounded-xl overflow-hidden">
+    <div className="w-full h-64 bg-panel/50 rounded-xl overflow-hidden">
       <Canvas>
         <PerspectiveCamera makeDefault position={[3, 2, 3]} />
         <OrbitControls enableZoom={false} />
@@ -58,16 +58,16 @@ export const BlochSphere: React.FC<BlochSphereProps> = ({ statevector }) => {
 
         {/* Wireframe sphere */}
         <Sphere args={[1, 32, 32]}>
-          <meshStandardMaterial color="#A78BFA" transparent opacity={0.15} wireframe />
+          <meshStandardMaterial color="#8A64FF" transparent opacity={0.15} wireframe />
         </Sphere>
 
         <axesHelper args={[1.5]} />
 
         <StateVector theta={theta} phi={phi} />
 
-        <Text position={[1.7, 0, 0]} fontSize={0.2} color="#9CA3AF">X</Text>
-        <Text position={[0, 1.7, 0]} fontSize={0.2} color="#9CA3AF">|0⟩</Text>
-        <Text position={[0, -1.7, 0]} fontSize={0.2} color="#9CA3AF">|1⟩</Text>
+        <Text position={[1.7, 0, 0]} fontSize={0.2} color="#A89DC8">X</Text>
+        <Text position={[0, 1.7, 0]} fontSize={0.2} color="#A89DC8">|0⟩</Text>
+        <Text position={[0, -1.7, 0]} fontSize={0.2} color="#A89DC8">|1⟩</Text>
       </Canvas>
     </div>
   )
