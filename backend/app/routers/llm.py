@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from app.services.llm_gateway import llm_gateway
 from app.services.circuit_context import serialize_circuit_context
-from app.models.circuit import CircuitBuildRequest, CircuitPatchResponse
+from app.models.circuit import CircuitBuildRequest, CircuitPatchResponse, NarrateCodeRequest, NarrateCodeResponse
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
@@ -106,6 +106,51 @@ async def circuit_build(request: CircuitBuildRequest):
             explanation=f"Could not interpret the request: {str(e)}",
             confidence=0.0,
         )
+
+
+CODE_NARRATION_SYSTEM_PROMPT = """You annotate quantum circuit code with explanatory comments.
+Explain physical and quantum-mechanical significance, not function signatures.
+Comments should help a reader understand what is happening to the quantum state,
+not what the code is doing syntactically. One comment per logical operation.
+Return annotated code only — no markdown, no backticks, no preamble."""
+
+
+@router.post("/narrate-code", response_model=NarrateCodeResponse)
+async def narrate_code(request: NarrateCodeRequest):
+    """Add explanatory quantum-mechanical comments to exported circuit code (spec §8.6)."""
+    user_prompt = (
+        f"The following {request.language} code was generated from a quantum circuit.\n"
+        "Add inline comments that explain the quantum-mechanical significance of each operation.\n\n"
+        "RULES:\n"
+        "- Comments must explain the WHY, not restate the function call.\n"
+        "- BAD: '# Apply Hadamard gate to qubit 0'\n"
+        "- GOOD: '# Creates superposition on qubit 0 — required so the following CNOT\n"
+        "#          can entangle qubits 0 and 1, producing a Bell state'\n"
+    )
+    if request.circuit_intent:
+        user_prompt += f"- Reference the circuit's purpose when known: {request.circuit_intent}\n"
+    user_prompt += (
+        "- Keep comments concise — one line per gate except for critical multi-gate sequences.\n\n"
+        f"CODE:\n{request.code}\n\n"
+        "Return the commented code only — no preamble, no backticks."
+    )
+
+    messages = [
+        {"role": "system", "content": CODE_NARRATION_SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    try:
+        annotated = await llm_gateway.complete(
+            messages=messages,
+            provider="openrouter",
+            model="deepseek/deepseek-coder",
+            temperature=0.3,
+            max_tokens=2000,
+        )
+        return NarrateCodeResponse(annotated_code=annotated)
+    except Exception:
+        return NarrateCodeResponse(annotated_code=request.code)
 
 
 @router.post("/explain-gate", response_model=ExplanationResponse)
