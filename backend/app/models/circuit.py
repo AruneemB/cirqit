@@ -74,3 +74,13 @@ class CircuitPatchResponse(BaseModel):
     ops: List[dict] = []
     explanation: str
     confidence: float
+
+
+class NarrateCodeRequest(BaseModel):
+    code: str
+    language: str = "python"
+    circuit_intent: Optional[str] = None
+
+
+class NarrateCodeResponse(BaseModel):
+    annotated_code: str
