@@ -23,11 +23,11 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
     }
   }, [isOpen])
 
-  const fetchCode = async () => {
+  const fetchCode = async (withNarration = addNarration) => {
     setIsLoading(true)
     try {
       const result = await exportQiskitCode(circuit)
-      if (addNarration) {
+      if (withNarration) {
         setIsLoading(false)
         setIsNarrating(true)
         try {
@@ -50,10 +50,9 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
 
   const handleToggleNarration = (enabled: boolean) => {
     setAddNarration(enabled)
-    // Re-fetch with new narration setting if code already loaded
     if (code) {
       setCode('')
-      setTimeout(() => fetchCode(), 0)
+      fetchCode(enabled)
     }
   }
 

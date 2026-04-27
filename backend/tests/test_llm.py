@@ -156,6 +156,64 @@ async def test_circuit_build_low_confidence_passthrough():
 
 
 @pytest.mark.asyncio
+async def test_narrate_code_returns_annotated_code():
+    with patch("app.routers.llm.llm_gateway") as mock_gateway:
+        mock_gateway.complete = AsyncMock(
+            return_value="# Creates superposition\nqc.h(0)\n# Entangles qubits 0 and 1\nqc.cx(0, 1)"
+        )
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/api/llm/narrate-code",
+                json={"code": "qc.h(0)\nqc.cx(0, 1)", "language": "python"},
+            )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert "annotated_code" in result
+    assert "superposition" in result["annotated_code"]
+
+
+@pytest.mark.asyncio
+async def test_narrate_code_with_circuit_intent():
+    captured_messages = []
+
+    async def capture_complete(messages, **kwargs):
+        captured_messages.extend(messages)
+        return "# Bell state circuit\nqc.h(0)"
+
+    with patch("app.routers.llm.llm_gateway") as mock_gateway:
+        mock_gateway.complete = capture_complete
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post(
+                "/api/llm/narrate-code",
+                json={
+                    "code": "qc.h(0)",
+                    "language": "python",
+                    "circuit_intent": "Bell state preparation",
+                },
+            )
+
+    user_message = next(m["content"] for m in captured_messages if m["role"] == "user")
+    assert "Bell state preparation" in user_message
+
+
+@pytest.mark.asyncio
+async def test_narrate_code_fallback_on_error():
+    original_code = "qc.h(0)\nqc.cx(0, 1)"
+    with patch("app.routers.llm.llm_gateway") as mock_gateway:
+        mock_gateway.complete = AsyncMock(side_effect=Exception("Provider unavailable"))
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/api/llm/narrate-code",
+                json={"code": original_code, "language": "python"},
+            )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["annotated_code"] == original_code
+
+
+@pytest.mark.asyncio
 async def test_explain_gate_fallback_on_error():
     with patch("app.routers.llm.llm_gateway") as mock_gateway:
         mock_gateway.complete = AsyncMock(side_effect=Exception("Provider unavailable"))
