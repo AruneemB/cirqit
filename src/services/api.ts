@@ -6,6 +6,11 @@ export interface CodeExportResponse {
   framework: string
 }
 
+export interface ExplanationResponse {
+  explanation: string
+  cached: boolean
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export class ApiError extends Error {
@@ -42,6 +47,20 @@ export async function exportQiskitCode(circuit: Circuit): Promise<CodeExportResp
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new ApiError(error.detail || 'Export failed', response.status, error)
+  }
+
+  return response.json()
+}
+
+export async function explainGate(gateType: string, context?: string): Promise<ExplanationResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/llm/explain-gate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gateType, context }),
+  })
+
+  if (!response.ok) {
+    throw new ApiError('Explanation failed', response.status, await response.json())
   }
 
   return response.json()
