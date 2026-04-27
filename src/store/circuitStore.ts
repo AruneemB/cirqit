@@ -78,3 +78,8 @@ export const useCircuitStore = create<CircuitState>()(
     )
   )
 )
+
+// Expose store in development so Playwright E2E tests can seed circuit state
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  ;(window as any).__cirqitStore = useCircuitStore
+}

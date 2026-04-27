@@ -65,11 +65,11 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div data-testid="export-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="bg-panel backdrop-blur-xl border border-violet-soft/20 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-violet-soft/20">
           <div>
-            <h2 className="text-2xl font-heading font-bold text-text-primary">
+            <h2 data-testid="export-modal-title" className="text-2xl font-heading font-bold text-text-primary">
               Export Qiskit Code
             </h2>
             <p className="text-sm text-text-secondary mt-1">
@@ -95,7 +95,7 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
               </div>
             </div>
           ) : (
-            <div className="relative">
+            <div data-testid="export-code-block" className="relative">
               <button
                 onClick={handleCopy}
                 className="absolute top-2 right-2 z-10 px-3 py-1 bg-accent/20 hover:bg-accent/30 text-accent text-sm rounded-md transition-colors"

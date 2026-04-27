@@ -10,7 +10,7 @@ export const StateInspector: React.FC = () => {
 
   if (!executionResult?.statevector) {
     return (
-      <div className="w-96 h-full bg-panel backdrop-blur-xl border-l border-violet-soft/20 p-6 flex items-center justify-center">
+      <div data-testid="state-inspector" className="w-96 h-full bg-panel backdrop-blur-xl border-l border-violet-soft/20 p-6 flex items-center justify-center">
         <div className="text-center text-text-secondary">
           <svg
             className="w-16 h-16 mx-auto mb-4 opacity-50"
@@ -36,7 +36,7 @@ export const StateInspector: React.FC = () => {
   const numQubits = circuit.numQubits
 
   return (
-    <div className="w-96 h-full bg-panel backdrop-blur-xl border-l border-violet-soft/20 overflow-y-auto">
+    <div data-testid="state-inspector" className="w-96 h-full bg-panel backdrop-blur-xl border-l border-violet-soft/20 overflow-y-auto">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div>

@@ -9,6 +9,7 @@ export const ExportButton: React.FC = () => {
   return (
     <>
       <button
+        data-testid="export-btn"
         onClick={() => setShowModal(true)}
         disabled={!hasGates}
         className="px-6 py-2 bg-primary text-white font-heading font-semibold rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_12px_rgba(90,49,244,0.4)]"
