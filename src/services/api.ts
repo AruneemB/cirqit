@@ -1,4 +1,4 @@
-import { Circuit, ExecutionResult } from '../types/circuit'
+import { Circuit, ExecutionResult, CircuitPatch } from '../types/circuit'
 
 export interface CodeExportResponse {
   code: string
@@ -47,6 +47,20 @@ export async function exportQiskitCode(circuit: Circuit): Promise<CodeExportResp
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     throw new ApiError(error.detail || 'Export failed', response.status, error)
+  }
+
+  return response.json()
+}
+
+export async function buildCircuit(text: string, circuit: Circuit): Promise<CircuitPatch> {
+  const response = await fetch(`${API_BASE_URL}/api/llm/circuit-build`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, circuit }),
+  })
+
+  if (!response.ok) {
+    throw new ApiError('Circuit build failed', response.status, await response.json().catch(() => ({})))
   }
 
   return response.json()
