@@ -41,6 +41,8 @@ pnpm-debug.log*
 .npm
 .vite
 .vitest
+playwright-report/
+test-results/
 
 # --- Python ---
 # Byte-compiled / optimized / DLL files
