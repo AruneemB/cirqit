@@ -1,4 +1,6 @@
 import os
+import re
+import json
 from typing import List, Dict, Optional, Literal
 
 from openai import AsyncOpenAI
@@ -70,6 +72,33 @@ class LLMGateway:
             max_tokens=max_tokens,
         )
         return response.choices[0].message.content
+
+    async def complete_json(
+        self,
+        messages: List[Dict[str, str]],
+        provider: Optional[ModelProvider] = None,
+        model: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 1000,
+        max_retries: int = 2,
+    ) -> dict:
+        """Call an LLM and parse the response as JSON, retrying on parse failure."""
+        current_messages = list(messages)
+        last_raw = ""
+        for attempt in range(max_retries + 1):
+            last_raw = await self.complete(current_messages, provider, model, temperature, max_tokens)
+            cleaned = re.sub(r"^```(?:json)?\s*", "", last_raw.strip(), flags=re.MULTILINE)
+            cleaned = re.sub(r"\s*```\s*$", "", cleaned.strip(), flags=re.MULTILINE)
+            try:
+                return json.loads(cleaned.strip())
+            except json.JSONDecodeError:
+                if attempt == max_retries:
+                    raise ValueError(f"LLM did not return valid JSON after {max_retries + 1} attempts. Last response: {last_raw[:200]}")
+                current_messages = current_messages + [
+                    {"role": "assistant", "content": last_raw},
+                    {"role": "user", "content": "Your response was not valid JSON. Reply with only valid JSON — no markdown, no explanation, no code fences."},
+                ]
+        raise ValueError("JSON parsing failed")
 
     async def _call_gemini(
         self, model: str, messages: List[Dict[str, str]], temperature: float, max_tokens: int
