@@ -25,7 +25,7 @@ describe('AmplitudeChart', () => {
     const { AmplitudeChart } = await import('../components/AmplitudeChart')
     const sv: number[][] = [[1, 0], [0, 0]]
     render(<AmplitudeChart statevector={sv} />)
-    expect(screen.getByText('Amplitude Components')).toBeInTheDocument()
+    expect(screen.getByText('Amplitude Distribution')).toBeInTheDocument()
   })
 })
 

@@ -20,7 +20,7 @@ export const AmplitudeChart: React.FC<AmplitudeChartProps> = ({ statevector }) =
 
   return (
     <div className="w-full bg-glass border border-violet-soft/20 rounded-xl p-4">
-      <h3 className="text-sm font-medium text-text-secondary mb-3">Amplitude Components</h3>
+      <h3 className="text-sm font-medium text-text-secondary mb-3">Amplitude Distribution</h3>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(198,181,255,0.1)" />
