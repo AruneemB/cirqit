@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import execution, export, llm, training
+from app.routers import execution, export, llm, training, copilot
 
 app = FastAPI(title="Cirqit Backend", version="0.1.0")
 
@@ -20,6 +20,7 @@ app.include_router(execution.router)
 app.include_router(export.router)
 app.include_router(llm.router)
 app.include_router(training.router)
+app.include_router(copilot.router)
 
 @app.get("/health")
 async def health_check():
