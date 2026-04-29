@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { Circuit, Gate, ExecutionResult } from '../types/circuit'
 import { Parameter, ParameterMapping } from '../types/parameter'
+import { Observable } from '../types/observable'
 import { v4 as uuidv4 } from 'uuid'
 
 interface CircuitState {
@@ -9,6 +10,7 @@ interface CircuitState {
   executionResult: ExecutionResult | null
   parameters: Record<string, Parameter>
   parameterMappings: ParameterMapping[]
+  observable: Observable | null
 
   // Actions
   setNumQubits: (num: number) => void
@@ -25,6 +27,9 @@ interface CircuitState {
   linkGateToParameter: (gateId: string, paramIndex: number, parameterName: string) => void
   unlinkGateFromParameter: (gateId: string, paramIndex: number) => void
   getParametersForGate: (gateId: string) => ParameterMapping[]
+
+  // Observable actions
+  setObservable: (observable: Observable) => void
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -44,6 +49,7 @@ export const useCircuitStore = create<CircuitState>()(
         executionResult: null,
         parameters: {},
         parameterMappings: [],
+        observable: null,
 
         setNumQubits: (num) =>
           set((state) => ({
@@ -179,6 +185,10 @@ export const useCircuitStore = create<CircuitState>()(
 
         getParametersForGate: (gateId) => {
           return get().parameterMappings.filter((m) => m.gateId === gateId)
+        },
+
+        setObservable: (observable) => {
+          set({ observable })
         },
       }),
       { name: 'CircuitStore' }
