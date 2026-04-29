@@ -1,4 +1,5 @@
 import { Circuit, ExecutionResult, CircuitPatch } from '../types/circuit'
+import { CircuitContext } from '../types/training'
 
 export interface CodeExportResponse {
   code: string
@@ -100,4 +101,35 @@ export async function explainGate(gateType: string, context?: string): Promise<E
   }
 
   return response.json()
+}
+
+export interface TrainingJobResponse {
+  jobId: string
+  status: string
+}
+
+export interface TrainingStartRequest {
+  context: CircuitContext
+  learningRate?: number
+  maxIterations?: number
+  convergenceThreshold?: number
+}
+
+export async function startTrainingJob(request: TrainingStartRequest): Promise<TrainingJobResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/training/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Training start failed', response.status, error)
+  }
+
+  return response.json()
+}
+
+export function createTrainingStream(jobId: string): EventSource {
+  return new EventSource(`${API_BASE_URL}/api/training/stream/${jobId}`)
 }

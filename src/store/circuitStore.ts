@@ -4,6 +4,19 @@ import { Circuit, Gate, ExecutionResult } from '../types/circuit'
 import { Parameter, ParameterMapping } from '../types/parameter'
 import { Observable } from '../types/observable'
 import { v4 as uuidv4 } from 'uuid'
+import { serializeCircuitContext } from '../utils/contextSerializer'
+import { startTrainingJob, createTrainingStream } from '../services/api'
+
+interface TrainingState {
+  jobId: string | null
+  isTraining: boolean
+  lossHistory: number[]
+  currentIteration: number
+  totalIterations: number
+}
+
+// Module-level EventSource so it survives re-renders without polluting store state
+let _activeStream: EventSource | null = null
 
 interface CircuitState {
   circuit: Circuit
@@ -30,6 +43,12 @@ interface CircuitState {
 
   // Observable actions
   setObservable: (observable: Observable) => void
+
+  // Training state + actions
+  training: TrainingState
+  startTraining: (config?: { learningRate?: number; maxIterations?: number }) => Promise<void>
+  stopTraining: () => void
+  updateTrainingProgress: (progress: { current: number; total: number; loss: number }) => void
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -50,6 +69,13 @@ export const useCircuitStore = create<CircuitState>()(
         parameters: {},
         parameterMappings: [],
         observable: null,
+        training: {
+          jobId: null,
+          isTraining: false,
+          lossHistory: [],
+          currentIteration: 0,
+          totalIterations: 0,
+        },
 
         setNumQubits: (num) =>
           set((state) => ({
@@ -189,6 +215,73 @@ export const useCircuitStore = create<CircuitState>()(
 
         setObservable: (observable) => {
           set({ observable })
+        },
+
+        startTraining: async (config = {}) => {
+          const { learningRate = 0.01, maxIterations = 100 } = config
+          const context = serializeCircuitContext()
+
+          set((state) => ({
+            training: {
+              ...state.training,
+              isTraining: true,
+              lossHistory: [],
+              currentIteration: 0,
+              totalIterations: maxIterations,
+              jobId: null,
+            },
+          }))
+
+          const { jobId } = await startTrainingJob({
+            context,
+            learningRate,
+            maxIterations,
+          })
+
+          set((state) => ({ training: { ...state.training, jobId } }))
+
+          _activeStream?.close()
+          _activeStream = createTrainingStream(jobId)
+
+          _activeStream.addEventListener('progress', (e: MessageEvent) => {
+            const info = JSON.parse(e.data)
+            get().updateTrainingProgress({ current: info.current, total: info.total, loss: info.loss })
+          })
+
+          _activeStream.addEventListener('completed', () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            _activeStream?.close()
+            _activeStream = null
+          })
+
+          _activeStream.addEventListener('failed', () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            _activeStream?.close()
+            _activeStream = null
+          })
+
+          _activeStream.onerror = () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            _activeStream?.close()
+            _activeStream = null
+          }
+        },
+
+        stopTraining: () => {
+          _activeStream?.close()
+          _activeStream = null
+          set((state) => ({ training: { ...state.training, isTraining: false } }))
+        },
+
+        updateTrainingProgress: (progress) => {
+          set((state) => ({
+            training: {
+              ...state.training,
+              currentIteration: progress.current,
+              totalIterations: progress.total,
+              lossHistory: [...state.training.lossHistory, progress.loss],
+            },
+          }))
         },
       }),
       { name: 'CircuitStore' }
