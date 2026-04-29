@@ -11,8 +11,12 @@ export const TrainingDashboard: React.FC = () => {
   const isTraining = training.isTraining
   const lossHistory = training.lossHistory
 
-  const handleStart = () => {
-    startTraining({ learningRate, maxIterations: maxIter })
+  const handleStart = async () => {
+    try {
+      await startTraining({ learningRate, maxIterations: maxIter })
+    } catch (err) {
+      console.error('Training failed to start:', err)
+    }
   }
 
   return (
@@ -29,7 +33,10 @@ export const TrainingDashboard: React.FC = () => {
           <input
             type="number"
             value={learningRate}
-            onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              if (isFinite(v) && v > 0) setLearningRate(v)
+            }}
             disabled={isTraining}
             className="bg-bg/50 border border-white/8 rounded px-3 py-2 text-sm focus:border-primary/50 outline-none"
           />
@@ -39,7 +46,10 @@ export const TrainingDashboard: React.FC = () => {
           <input
             type="number"
             value={maxIter}
-            onChange={(e) => setMaxIter(parseInt(e.target.value))}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10)
+              if (isFinite(v) && v >= 1) setMaxIter(v)
+            }}
             disabled={isTraining}
             className="bg-bg/50 border border-white/8 rounded px-3 py-2 text-sm focus:border-primary/50 outline-none"
           />
@@ -70,7 +80,7 @@ export const TrainingDashboard: React.FC = () => {
           <div className="text-[10px] text-text-secondary uppercase font-mono mb-1">Iteration</div>
           <div className="text-xl font-mono text-text-primary">
             {training.currentIteration}{' '}
-            <span className="text-xs text-text-secondary">/ {maxIter}</span>
+            <span className="text-xs text-text-secondary">/ {training.totalIterations}</span>
           </div>
         </div>
       </div>

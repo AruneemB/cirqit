@@ -1,14 +1,21 @@
+import asyncio
+import json
+import logging
+import time
+from typing import Dict
+
+from celery.result import AsyncResult
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Dict
+from sse_starlette.sse import EventSourceResponse
+
+from app.celery_app import celery_app
 from app.models.training import CircuitContext
 from app.services.gradient_engine import compute_expectation_value, compute_gradients_parameter_shift
 from app.tasks.training_tasks import train_circuit
-from app.celery_app import celery_app
-from celery.result import AsyncResult
-from sse_starlette.sse import EventSourceResponse
-import asyncio
-import json
+
+logger = logging.getLogger(__name__)
+SSE_TIMEOUT_SECONDS = 600
 
 router = APIRouter(prefix="/api/training", tags=["training"])
 
@@ -33,8 +40,9 @@ class TrainingJobResponse(BaseModel):
 @router.post("/gradients", response_model=GradientResponse)
 async def compute_gradients(context: CircuitContext):
     """Compute loss and gradients using parameter-shift rule"""
-    loss = compute_expectation_value(context)
-    gradients = compute_gradients_parameter_shift(context)
+    loop = asyncio.get_running_loop()
+    loss = await loop.run_in_executor(None, compute_expectation_value, context)
+    gradients = await loop.run_in_executor(None, compute_gradients_parameter_shift, context)
     return GradientResponse(loss=loss, gradients=gradients)
 
 
@@ -72,8 +80,16 @@ async def stream_training_progress(job_id: str):
     async def event_generator():
         task_result = AsyncResult(job_id, app=celery_app)
         last_iteration = -1
+        deadline = time.monotonic() + SSE_TIMEOUT_SECONDS
 
         while True:
+            if time.monotonic() > deadline:
+                yield {
+                    "event": "failed",
+                    "data": json.dumps({"error": f"Timed out waiting for job (state: {task_result.state})"})
+                }
+                break
+
             if task_result.state == 'PROGRESS':
                 info = task_result.info
                 if info['current'] > last_iteration:
@@ -91,9 +107,15 @@ async def stream_training_progress(job_id: str):
                 break
 
             elif task_result.state == 'FAILURE':
+                info = task_result.info
+                if isinstance(info, Exception):
+                    error_msg = str(info.args[0]) if info.args else type(info).__name__
+                else:
+                    error_msg = str(info) if info else "Task failed"
+                logger.exception("Training task %s failed: %s", job_id, info)
                 yield {
                     "event": "failed",
-                    "data": json.dumps({"error": str(task_result.info)})
+                    "data": json.dumps({"error": error_msg[:500]})
                 }
                 break
 

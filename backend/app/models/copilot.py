@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Literal
 from datetime import datetime, timezone
 import uuid
@@ -20,8 +20,15 @@ class Conversation(BaseModel):
 
 class CopilotRequest(BaseModel):
     conversation_id: Optional[str] = None
-    message: str
+    message: str = Field(..., min_length=1, max_length=2000)
     circuit_context: Optional[dict] = None
+
+    @field_validator('message')
+    @classmethod
+    def message_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('message must not be blank')
+        return v.strip()
 
 
 class CopilotResponse(BaseModel):

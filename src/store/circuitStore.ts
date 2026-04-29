@@ -161,6 +161,11 @@ export const useCircuitStore = create<CircuitState>()(
             const param = state.parameters[parameterName]
             if (!param) return state
 
+            const exists = state.parameterMappings.some(
+              (m) => m.gateId === gateId && m.paramIndex === paramIndex
+            )
+            if (exists) return state
+
             const newMapping: ParameterMapping = { gateId, paramIndex, parameterName }
 
             const newParameters = {
@@ -168,14 +173,13 @@ export const useCircuitStore = create<CircuitState>()(
               [parameterName]: { ...param, gateIds: [...param.gateIds, gateId] },
             }
 
-            const newGates = state.circuit.gates.map((gate) =>
-              gate.id === gateId
-                ? {
-                    ...gate,
-                    params: gate.params?.map((p, i) => (i === paramIndex ? param.value : p)) || [param.value],
-                  }
-                : gate
-            )
+            const newGates = state.circuit.gates.map((gate) => {
+              if (gate.id !== gateId) return gate
+              const params = Array.isArray(gate.params) ? [...gate.params] : []
+              while (params.length <= paramIndex) params.push(undefined as unknown as number)
+              params[paramIndex] = param.value
+              return { ...gate, params }
+            })
 
             return {
               parameters: newParameters,
@@ -232,38 +236,52 @@ export const useCircuitStore = create<CircuitState>()(
             },
           }))
 
-          const { jobId } = await startTrainingJob({
-            context,
-            learningRate,
-            maxIterations,
-          })
+          let jobId: string
+          try {
+            const response = await startTrainingJob({ context, learningRate, maxIterations })
+            jobId = response.jobId
+          } catch (err) {
+            set((state) => ({
+              training: { ...state.training, isTraining: false, jobId: null, totalIterations: 0 },
+            }))
+            throw err
+          }
 
           set((state) => ({ training: { ...state.training, jobId } }))
 
           _activeStream?.close()
           _activeStream = createTrainingStream(jobId)
 
-          _activeStream.addEventListener('progress', (e: MessageEvent) => {
+          const onProgress = (e: MessageEvent) => {
             const info = JSON.parse(e.data)
             get().updateTrainingProgress({ current: info.current, total: info.total, loss: info.loss })
-          })
+          }
 
-          _activeStream.addEventListener('completed', () => {
-            set((state) => ({ training: { ...state.training, isTraining: false } }))
+          const cleanup = () => {
+            _activeStream?.removeEventListener('progress', onProgress)
+            _activeStream?.removeEventListener('completed', onCompleted)
+            _activeStream?.removeEventListener('failed', onFailed)
             _activeStream?.close()
             _activeStream = null
-          })
+          }
 
-          _activeStream.addEventListener('failed', () => {
+          const onCompleted = () => {
             set((state) => ({ training: { ...state.training, isTraining: false } }))
-            _activeStream?.close()
-            _activeStream = null
-          })
+            cleanup()
+          }
+
+          const onFailed = () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            cleanup()
+          }
+
+          _activeStream.addEventListener('progress', onProgress)
+          _activeStream.addEventListener('completed', onCompleted)
+          _activeStream.addEventListener('failed', onFailed)
 
           _activeStream.onerror = () => {
             set((state) => ({ training: { ...state.training, isTraining: false } }))
-            _activeStream?.close()
-            _activeStream = null
+            cleanup()
           }
         },
 

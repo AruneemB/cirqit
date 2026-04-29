@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Observable, PauliTerm, PauliString } from '../types/observable'
 
 interface ObservableBuilderProps {
@@ -16,6 +16,13 @@ export const ObservableBuilder: React.FC<ObservableBuilderProps> = ({
     coefficient: 1.0,
     paulis: Array(numQubits).fill('I'),
   })
+
+  useEffect(() => {
+    setNewTerm((prev) => ({
+      coefficient: prev.coefficient,
+      paulis: Array(numQubits).fill('I'),
+    }))
+  }, [numQubits])
 
   const addTerm = () => {
     onChange({
@@ -69,7 +76,10 @@ export const ObservableBuilder: React.FC<ObservableBuilderProps> = ({
                 type="number"
                 step="0.1"
                 value={term.coefficient}
-                onChange={(e) => updateTermCoefficient(idx, parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value)
+                  updateTermCoefficient(idx, Number.isNaN(v) ? 0 : v)
+                }}
                 className="w-20 px-2 py-1 bg-surface border border-white/8 rounded text-text-primary text-sm"
               />
               <span className="text-text-secondary">×</span>
@@ -103,9 +113,10 @@ export const ObservableBuilder: React.FC<ObservableBuilderProps> = ({
             type="number"
             step="0.1"
             value={newTerm.coefficient}
-            onChange={(e) =>
-              setNewTerm({ ...newTerm, coefficient: parseFloat(e.target.value) })
-            }
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              setNewTerm({ ...newTerm, coefficient: Number.isNaN(v) ? 0 : v })
+            }}
             className="w-20 px-2 py-1 bg-surface border border-white/8 rounded text-text-primary text-sm"
             placeholder="Coeff"
           />

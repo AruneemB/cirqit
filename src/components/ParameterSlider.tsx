@@ -32,14 +32,15 @@ export const ParameterSlider: React.FC<ParameterSliderProps> = ({
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
+        aria-label={`Parameter: ${label}`}
         className="w-full h-1 bg-bg/50 rounded-lg appearance-none cursor-pointer accent-primary"
       />
       <div className="flex justify-between text-[10px] text-text-secondary font-mono mt-1">
         <span>0</span>
         <div className="flex gap-2">
-          <button onClick={() => onChange(Math.PI / 2)} className="hover:text-primary">π/2</button>
-          <button onClick={() => onChange(Math.PI)} className="hover:text-primary">π</button>
-          <button onClick={() => onChange(2 * Math.PI)} className="hover:text-primary">2π</button>
+          <button type="button" onClick={() => onChange(Math.PI / 2)} className="hover:text-primary">π/2</button>
+          <button type="button" onClick={() => onChange(Math.PI)} className="hover:text-primary">π</button>
+          <button type="button" onClick={() => onChange(2 * Math.PI)} className="hover:text-primary">2π</button>
         </div>
       </div>
     </div>

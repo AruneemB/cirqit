@@ -1,4 +1,6 @@
 import json
+import logging
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
@@ -6,6 +8,12 @@ from fastapi import APIRouter, HTTPException
 from app.models.copilot import CopilotRequest, CopilotResponse, Conversation, Message
 from app.services.conversation_store import conversation_store
 from app.services.llm_gateway import llm_gateway
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_PROVIDER = os.getenv("COPILOT_PROVIDER", "openrouter")
+DEFAULT_MODEL = os.getenv("COPILOT_MODEL", "anthropic/claude-3.5-sonnet")
+MAX_CONTEXT_CHARS = 8000
 
 router = APIRouter(prefix="/api/copilot", tags=["copilot"])
 
@@ -32,10 +40,10 @@ async def chat(request: CopilotRequest):
     # Build system prompt, injecting circuit context when provided
     system_content = COPILOT_SYSTEM_PROMPT
     if request.circuit_context:
-        system_content += (
-            "\n\nCIRCUIT CONTEXT:\n"
-            + json.dumps(request.circuit_context, indent=2)
-        )
+        ctx_json = json.dumps(request.circuit_context, separators=(',', ':'))
+        if len(ctx_json) > MAX_CONTEXT_CHARS:
+            ctx_json = ctx_json[:MAX_CONTEXT_CHARS] + "...(truncated)"
+        system_content += "\n\nCIRCUIT CONTEXT:\n" + ctx_json
 
     # Assemble message list for the LLM
     llm_messages = [{"role": "system", "content": system_content}]
@@ -46,13 +54,17 @@ async def chat(request: CopilotRequest):
     user_message = Message(role="user", content=request.message)
     llm_messages.append({"role": "user", "content": request.message})
 
-    response_text = await llm_gateway.complete(
-        messages=llm_messages,
-        provider="openrouter",
-        model="anthropic/claude-3.5-sonnet",
-        temperature=0.7,
-        max_tokens=2000,
-    )
+    try:
+        response_text = await llm_gateway.complete(
+            messages=llm_messages,
+            provider=DEFAULT_PROVIDER,
+            model=DEFAULT_MODEL,
+            temperature=0.7,
+            max_tokens=2000,
+        )
+    except Exception as exc:
+        logger.exception("LLM gateway error: %s", exc)
+        raise HTTPException(status_code=502, detail="LLM provider unavailable. Please try again.")
 
     assistant_message = Message(role="assistant", content=response_text)
 
@@ -79,5 +91,8 @@ async def get_conversation(conversation_id: str):
 @router.delete("/conversation/{conversation_id}")
 async def delete_conversation(conversation_id: str):
     """Remove a conversation from the store."""
+    existing = await conversation_store.get(conversation_id)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
     await conversation_store.delete(conversation_id)
     return {"status": "deleted", "conversation_id": conversation_id}

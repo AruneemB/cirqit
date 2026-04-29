@@ -131,5 +131,5 @@ export async function startTrainingJob(request: TrainingStartRequest): Promise<T
 }
 
 export function createTrainingStream(jobId: string): EventSource {
-  return new EventSource(`${API_BASE_URL}/api/training/stream/${jobId}`)
+  return new EventSource(`${API_BASE_URL}/api/training/stream/${encodeURIComponent(jobId)}`)
 }

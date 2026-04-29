@@ -5,12 +5,11 @@ import { Parameter, ParameterMapping } from './parameter'
 export interface CircuitContext {
   circuit: Circuit
   parameters: Record<string, Parameter>
-  observable: Observable
+  observable?: Observable
   parameterMappings: ParameterMapping[]
 }
 
 export interface TrainingConfig {
-  optimizer: 'adam' | 'sgd' | 'rmsprop'
   learningRate: number
   maxIterations: number
   convergenceThreshold: number

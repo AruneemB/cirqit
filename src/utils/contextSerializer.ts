@@ -18,7 +18,7 @@ export function serializeCircuitContext(): CircuitContext {
   })
 
   if (!allLinked) {
-    console.warn('Some parameterized gates are not linked to trainable parameters')
+    throw new Error('Some parameterized gates are not linked to trainable parameters.')
   }
 
   return {
@@ -36,7 +36,7 @@ export function validateCircuitContext(context: CircuitContext): string[] {
     errors.push('Circuit has no gates')
   }
 
-  if (Object.keys(context.parameters).length === 0) {
+  if (!context.parameters || !Object.values(context.parameters).some((p) => p && p.isTrainable)) {
     errors.push('No trainable parameters defined')
   }
 

@@ -49,24 +49,30 @@ def train_circuit(
             }
         )
 
-        if iteration > 0 and abs(loss_history[-1] - loss_history[-2]) < convergence_threshold:
-            break
-
         current_params = optimizer.step(current_params, gradients)
 
         for param_name, new_value in current_params.items():
+            if param_name not in context.parameters:
+                continue
             context.parameters[param_name].value = new_value
             for mapping in context.parameterMappings:
                 if mapping.parameterName == param_name:
                     for gate in context.circuit.gates:
                         if gate.id == mapping.gateId:
-                            gate.params[mapping.paramIndex] = new_value
+                            params = list(gate.params) if gate.params else []
+                            while len(params) <= mapping.paramIndex:
+                                params.append(None)
+                            params[mapping.paramIndex] = new_value
+                            gate.params = params
 
-        time.sleep(0.01)
+        if iteration > 0 and abs(loss_history[-1] - loss_history[-2]) < convergence_threshold:
+            break
+
+        time.sleep(0.01)  # Throttle state updates to reduce Redis/broker load
 
     return {
         'status': 'completed',
-        'final_loss': loss_history[-1],
+        'final_loss': loss_history[-1] if loss_history else None,
         'final_parameters': current_params,
         'loss_history': loss_history,
         'parameter_history': parameter_history,
