@@ -6,6 +6,9 @@ from app.services.gradient_engine import compute_expectation_value, compute_grad
 from app.tasks.training_tasks import train_circuit
 from app.celery_app import celery_app
 from celery.result import AsyncResult
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+import json
 
 router = APIRouter(prefix="/api/training", tags=["training"])
 
@@ -60,3 +63,40 @@ async def get_training_status(job_id: str):
         return {'status': 'completed', 'result': task_result.result}
     else:
         return {'status': 'failed', 'error': str(task_result.info)}
+
+
+@router.get("/stream/{job_id}")
+async def stream_training_progress(job_id: str):
+    """Stream training progress via SSE"""
+
+    async def event_generator():
+        task_result = AsyncResult(job_id, app=celery_app)
+        last_iteration = -1
+
+        while True:
+            if task_result.state == 'PROGRESS':
+                info = task_result.info
+                if info['current'] > last_iteration:
+                    yield {
+                        "event": "progress",
+                        "data": json.dumps(info)
+                    }
+                    last_iteration = info['current']
+
+            elif task_result.state == 'SUCCESS':
+                yield {
+                    "event": "completed",
+                    "data": json.dumps(task_result.result)
+                }
+                break
+
+            elif task_result.state == 'FAILURE':
+                yield {
+                    "event": "failed",
+                    "data": json.dumps({"error": str(task_result.info)})
+                }
+                break
+
+            await asyncio.sleep(0.1)
+
+    return EventSourceResponse(event_generator())
