@@ -133,3 +133,42 @@ export async function startTrainingJob(request: TrainingStartRequest): Promise<T
 export function createTrainingStream(jobId: string): EventSource {
   return new EventSource(`${API_BASE_URL}/api/training/stream/${encodeURIComponent(jobId)}`)
 }
+
+export interface CopilotChatRequest {
+  message: string
+  conversation_id?: string | null
+  circuit_context?: object | null
+}
+
+export interface CopilotMessageData {
+  id: string
+  role: string
+  content: string
+  timestamp?: string
+}
+
+export interface CopilotChatResponse {
+  conversation_id: string
+  message: CopilotMessageData
+  conversation: {
+    id: string
+    messages: CopilotMessageData[]
+    created_at: string
+    updated_at: string
+  }
+}
+
+export async function sendCopilotChat(request: CopilotChatRequest): Promise<CopilotChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/copilot/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Copilot chat failed', response.status, error)
+  }
+
+  return response.json()
+}

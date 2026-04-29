@@ -5,7 +5,21 @@ import { Parameter, ParameterMapping } from '../types/parameter'
 import { Observable } from '../types/observable'
 import { v4 as uuidv4 } from 'uuid'
 import { serializeCircuitContext } from '../utils/contextSerializer'
-import { startTrainingJob, createTrainingStream } from '../services/api'
+import { startTrainingJob, createTrainingStream, sendCopilotChat } from '../services/api'
+
+export interface CopilotMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  isStreaming?: boolean
+}
+
+interface CopilotState {
+  conversationId: string | null
+  messages: CopilotMessage[]
+  isStreaming: boolean
+  isOpen: boolean
+}
 
 interface TrainingState {
   jobId: string | null
@@ -49,6 +63,12 @@ interface CircuitState {
   startTraining: (config?: { learningRate?: number; maxIterations?: number }) => Promise<void>
   stopTraining: () => void
   updateTrainingProgress: (progress: { current: number; total: number; loss: number }) => void
+
+  // Copilot state + actions
+  copilot: CopilotState
+  sendCopilotMessage: (content: string) => Promise<void>
+  toggleCopilot: () => void
+  clearCopilot: () => void
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -75,6 +95,12 @@ export const useCircuitStore = create<CircuitState>()(
           lossHistory: [],
           currentIteration: 0,
           totalIterations: 0,
+        },
+        copilot: {
+          conversationId: null,
+          messages: [],
+          isStreaming: false,
+          isOpen: false,
         },
 
         setNumQubits: (num) =>
@@ -298,6 +324,76 @@ export const useCircuitStore = create<CircuitState>()(
               currentIteration: progress.current,
               totalIterations: progress.total,
               lossHistory: [...state.training.lossHistory, progress.loss],
+            },
+          }))
+        },
+
+        sendCopilotMessage: async (content) => {
+          const userMsg: CopilotMessage = { id: uuidv4(), role: 'user', content }
+          const placeholderId = uuidv4()
+          const placeholder: CopilotMessage = {
+            id: placeholderId,
+            role: 'assistant',
+            content: '',
+            isStreaming: true,
+          }
+
+          set((state) => ({
+            copilot: {
+              ...state.copilot,
+              isStreaming: true,
+              messages: [...state.copilot.messages, userMsg, placeholder],
+            },
+          }))
+
+          try {
+            const circuit = get().circuit
+            const response = await sendCopilotChat({
+              message: content,
+              conversation_id: get().copilot.conversationId,
+              circuit_context: { numQubits: circuit.numQubits, gates: circuit.gates },
+            })
+
+            set((state) => ({
+              copilot: {
+                ...state.copilot,
+                conversationId: response.conversation_id,
+                isStreaming: false,
+                messages: state.copilot.messages.map((m) =>
+                  m.id === placeholderId
+                    ? { ...m, content: response.message.content, isStreaming: false }
+                    : m
+                ),
+              },
+            }))
+          } catch {
+            set((state) => ({
+              copilot: {
+                ...state.copilot,
+                isStreaming: false,
+                messages: state.copilot.messages.map((m) =>
+                  m.id === placeholderId
+                    ? { ...m, content: 'Sorry, I could not reach the backend. Please try again.', isStreaming: false }
+                    : m
+                ),
+              },
+            }))
+          }
+        },
+
+        toggleCopilot: () => {
+          set((state) => ({
+            copilot: { ...state.copilot, isOpen: !state.copilot.isOpen },
+          }))
+        },
+
+        clearCopilot: () => {
+          set((state) => ({
+            copilot: {
+              ...state.copilot,
+              conversationId: null,
+              messages: [],
+              isStreaming: false,
             },
           }))
         },
