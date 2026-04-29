@@ -1,12 +1,30 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { Circuit, Gate, ExecutionResult } from '../types/circuit'
+import { Parameter, ParameterMapping } from '../types/parameter'
+import { Observable } from '../types/observable'
 import { v4 as uuidv4 } from 'uuid'
+import { serializeCircuitContext } from '../utils/contextSerializer'
+import { startTrainingJob, createTrainingStream } from '../services/api'
+
+interface TrainingState {
+  jobId: string | null
+  isTraining: boolean
+  lossHistory: number[]
+  currentIteration: number
+  totalIterations: number
+}
+
+// Module-level EventSource so it survives re-renders without polluting store state
+let _activeStream: EventSource | null = null
 
 interface CircuitState {
   circuit: Circuit
   executionResult: ExecutionResult | null
-  
+  parameters: Record<string, Parameter>
+  parameterMappings: ParameterMapping[]
+  observable: Observable | null
+
   // Actions
   setNumQubits: (num: number) => void
   addGate: (gate: Omit<Gate, 'id'>) => void
@@ -15,6 +33,22 @@ interface CircuitState {
   clearCircuit: () => void
   setExecutionResult: (result: ExecutionResult) => void
   clearExecution: () => void
+
+  // Parameter actions
+  createParameter: (name: string, initialValue: number, isTrainable: boolean) => void
+  updateParameter: (name: string, newValue: number) => void
+  linkGateToParameter: (gateId: string, paramIndex: number, parameterName: string) => void
+  unlinkGateFromParameter: (gateId: string, paramIndex: number) => void
+  getParametersForGate: (gateId: string) => ParameterMapping[]
+
+  // Observable actions
+  setObservable: (observable: Observable) => void
+
+  // Training state + actions
+  training: TrainingState
+  startTraining: (config?: { learningRate?: number; maxIterations?: number }) => Promise<void>
+  stopTraining: () => void
+  updateTrainingProgress: (progress: { current: number; total: number; loss: number }) => void
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -29,9 +63,19 @@ const DEFAULT_CIRCUIT: Circuit = {
 export const useCircuitStore = create<CircuitState>()(
   devtools(
     persist(
-      (set) => ({
+      (set, get) => ({
         circuit: DEFAULT_CIRCUIT,
         executionResult: null,
+        parameters: {},
+        parameterMappings: [],
+        observable: null,
+        training: {
+          jobId: null,
+          isTraining: false,
+          lossHistory: [],
+          currentIteration: 0,
+          totalIterations: 0,
+        },
 
         setNumQubits: (num) =>
           set((state) => ({
@@ -73,6 +117,190 @@ export const useCircuitStore = create<CircuitState>()(
 
         setExecutionResult: (result) => set({ executionResult: result }),
         clearExecution: () => set({ executionResult: null }),
+
+        createParameter: (name, initialValue, isTrainable) => {
+          set((state) => ({
+            parameters: {
+              ...state.parameters,
+              [name]: { name, value: initialValue, isTrainable, gateIds: [] },
+            },
+          }))
+        },
+
+        updateParameter: (name, newValue) => {
+          set((state) => {
+            const param = state.parameters[name]
+            if (!param) return state
+
+            const newParameters = {
+              ...state.parameters,
+              [name]: { ...param, value: newValue },
+            }
+
+            const affectedMappings = state.parameterMappings.filter(
+              (m) => m.parameterName === name
+            )
+
+            const newGates = state.circuit.gates.map((gate) => {
+              const mapping = affectedMappings.find((m) => m.gateId === gate.id)
+              if (!mapping) return gate
+              const newParams = [...(gate.params || [])]
+              newParams[mapping.paramIndex] = newValue
+              return { ...gate, params: newParams }
+            })
+
+            return {
+              parameters: newParameters,
+              circuit: { ...state.circuit, gates: newGates, updatedAt: new Date().toISOString() },
+            }
+          })
+        },
+
+        linkGateToParameter: (gateId, paramIndex, parameterName) => {
+          set((state) => {
+            const param = state.parameters[parameterName]
+            if (!param) return state
+
+            const exists = state.parameterMappings.some(
+              (m) => m.gateId === gateId && m.paramIndex === paramIndex
+            )
+            if (exists) return state
+
+            const newMapping: ParameterMapping = { gateId, paramIndex, parameterName }
+
+            const newParameters = {
+              ...state.parameters,
+              [parameterName]: { ...param, gateIds: [...param.gateIds, gateId] },
+            }
+
+            const newGates = state.circuit.gates.map((gate) => {
+              if (gate.id !== gateId) return gate
+              const params = Array.isArray(gate.params) ? [...gate.params] : []
+              while (params.length <= paramIndex) params.push(undefined as unknown as number)
+              params[paramIndex] = param.value
+              return { ...gate, params }
+            })
+
+            return {
+              parameters: newParameters,
+              parameterMappings: [...state.parameterMappings, newMapping],
+              circuit: { ...state.circuit, gates: newGates },
+            }
+          })
+        },
+
+        unlinkGateFromParameter: (gateId, paramIndex) => {
+          set((state) => {
+            const mapping = state.parameterMappings.find(
+              (m) => m.gateId === gateId && m.paramIndex === paramIndex
+            )
+            if (!mapping) return state
+
+            const newMappings = state.parameterMappings.filter(
+              (m) => !(m.gateId === gateId && m.paramIndex === paramIndex)
+            )
+
+            const param = state.parameters[mapping.parameterName]
+            const newParameters = {
+              ...state.parameters,
+              [mapping.parameterName]: {
+                ...param,
+                gateIds: param.gateIds.filter((id) => id !== gateId),
+              },
+            }
+
+            return { parameterMappings: newMappings, parameters: newParameters }
+          })
+        },
+
+        getParametersForGate: (gateId) => {
+          return get().parameterMappings.filter((m) => m.gateId === gateId)
+        },
+
+        setObservable: (observable) => {
+          set({ observable })
+        },
+
+        startTraining: async (config = {}) => {
+          const { learningRate = 0.01, maxIterations = 100 } = config
+          const context = serializeCircuitContext()
+
+          set((state) => ({
+            training: {
+              ...state.training,
+              isTraining: true,
+              lossHistory: [],
+              currentIteration: 0,
+              totalIterations: maxIterations,
+              jobId: null,
+            },
+          }))
+
+          let jobId: string
+          try {
+            const response = await startTrainingJob({ context, learningRate, maxIterations })
+            jobId = response.jobId
+          } catch (err) {
+            set((state) => ({
+              training: { ...state.training, isTraining: false, jobId: null, totalIterations: 0 },
+            }))
+            throw err
+          }
+
+          set((state) => ({ training: { ...state.training, jobId } }))
+
+          _activeStream?.close()
+          _activeStream = createTrainingStream(jobId)
+
+          const onProgress = (e: MessageEvent) => {
+            const info = JSON.parse(e.data)
+            get().updateTrainingProgress({ current: info.current, total: info.total, loss: info.loss })
+          }
+
+          const cleanup = () => {
+            _activeStream?.removeEventListener('progress', onProgress)
+            _activeStream?.removeEventListener('completed', onCompleted)
+            _activeStream?.removeEventListener('failed', onFailed)
+            _activeStream?.close()
+            _activeStream = null
+          }
+
+          const onCompleted = () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            cleanup()
+          }
+
+          const onFailed = () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            cleanup()
+          }
+
+          _activeStream.addEventListener('progress', onProgress)
+          _activeStream.addEventListener('completed', onCompleted)
+          _activeStream.addEventListener('failed', onFailed)
+
+          _activeStream.onerror = () => {
+            set((state) => ({ training: { ...state.training, isTraining: false } }))
+            cleanup()
+          }
+        },
+
+        stopTraining: () => {
+          _activeStream?.close()
+          _activeStream = null
+          set((state) => ({ training: { ...state.training, isTraining: false } }))
+        },
+
+        updateTrainingProgress: (progress) => {
+          set((state) => ({
+            training: {
+              ...state.training,
+              currentIteration: progress.current,
+              totalIterations: progress.total,
+              lossHistory: [...state.training.lossHistory, progress.loss],
+            },
+          }))
+        },
       }),
       { name: 'CircuitStore' }
     )
