@@ -1,4 +1,8 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from app.models.circuit import Circuit
 from app.services.code_generator import generate_qiskit_code, narrate_qiskit_code
@@ -24,8 +28,11 @@ async def export_qiskit(request: QiskitExportRequest):
         if request.include_narration:
             code = await narrate_qiskit_code(code, request.circuit)
         return {"code": code, "language": "python", "framework": "qiskit"}
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Qiskit export failed")
+        raise HTTPException(status_code=500, detail="Export failed")
 
 
 @router.post("/pennylane")
@@ -34,5 +41,8 @@ async def export_pennylane(request: PennyLaneExportRequest):
     try:
         code = generate_pennylane_code(request.circuit)
         return {"code": code, "language": "python", "framework": "pennylane"}
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("PennyLane export failed")
+        raise HTTPException(status_code=500, detail="Export failed")
