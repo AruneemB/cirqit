@@ -56,6 +56,21 @@ export async function exportQiskitCode(
   return response.json()
 }
 
+export async function exportPennyLaneCode(circuit: Circuit): Promise<CodeExportResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/export/pennylane`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ circuit }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Export failed', response.status, error)
+  }
+
+  return response.json()
+}
+
 export async function buildCircuit(text: string, circuit: Circuit): Promise<CircuitPatch> {
   const response = await fetch(`${API_BASE_URL}/api/llm/circuit-build`, {
     method: 'POST',
