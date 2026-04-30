@@ -18,6 +18,7 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
   const [addNarration, setAddNarration] = useState(false)
   const [copied, setCopied] = useState(false)
   const [framework, setFramework] = useState<Framework>('qiskit')
+  const latestRequestRef = React.useRef(0)
 
   React.useEffect(() => {
     if (isOpen && !code) {
@@ -26,16 +27,23 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
   }, [isOpen])
 
   const fetchCode = async (fw: Framework = framework, withNarration = addNarration) => {
+    const requestId = ++latestRequestRef.current
     setIsLoading(true)
     try {
       const result = fw === 'pennylane'
         ? await exportPennyLaneCode(circuit)
         : await exportQiskitCode(circuit, withNarration)
-      setCode(result.code)
+      if (requestId === latestRequestRef.current) {
+        setCode(result.code)
+      }
     } catch (error) {
-      alert('Export failed: ' + (error as Error).message)
+      if (requestId === latestRequestRef.current) {
+        alert('Export failed: ' + (error as Error).message)
+      }
     } finally {
-      setIsLoading(false)
+      if (requestId === latestRequestRef.current) {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -47,10 +55,8 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
 
   const handleToggleNarration = (enabled: boolean) => {
     setAddNarration(enabled)
-    if (code) {
-      setCode('')
-      fetchCode(framework, enabled)
-    }
+    setCode('')
+    fetchCode(framework, enabled)
   }
 
   const handleCopy = () => {
