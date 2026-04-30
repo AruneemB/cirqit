@@ -14,12 +14,15 @@ export const ParameterInitModal: React.FC<ParameterInitModalProps> = ({
 }) => {
   const [strategy, setStrategy] = useState<InitStrategy>('random_uniform')
   const [useSeed, setUseSeed] = useState(false)
-  const [seed, setSeed] = useState(42)
+  const [seedInput, setSeedInput] = useState('42')
+
+  const parsedSeed = Number(seedInput)
+  const hasValidSeed = Number.isInteger(parsedSeed) && parsedSeed >= 0
 
   const handleApply = () => {
     const values = initializeParameters(parameterNames, {
       strategy,
-      seed: useSeed ? seed : undefined,
+      seed: useSeed ? parsedSeed : undefined,
       fanIn: parameterNames.length,
       fanOut: parameterNames.length,
     })
@@ -75,10 +78,15 @@ export const ParameterInitModal: React.FC<ParameterInitModalProps> = ({
               <label className="text-[10px] text-text-secondary uppercase font-mono">Seed</label>
               <input
                 type="number"
-                value={seed}
-                onChange={(e) => setSeed(parseInt(e.target.value, 10))}
-                className="bg-bg/50 border border-white/8 rounded px-3 py-2 text-sm text-text-primary focus:border-primary/50 outline-none"
+                value={seedInput}
+                onChange={(e) => setSeedInput(e.target.value)}
+                className={`bg-bg/50 border rounded px-3 py-2 text-sm text-text-primary focus:border-primary/50 outline-none ${
+                  hasValidSeed ? 'border-white/8' : 'border-error/60'
+                }`}
               />
+              {!hasValidSeed && (
+                <span className="text-[10px] text-error font-mono">Must be a non-negative integer</span>
+              )}
             </div>
           )}
 
@@ -98,7 +106,7 @@ export const ParameterInitModal: React.FC<ParameterInitModalProps> = ({
           </button>
           <button
             onClick={handleApply}
-            disabled={parameterNames.length === 0}
+            disabled={parameterNames.length === 0 || (useSeed && !hasValidSeed)}
             className="flex-1 py-2 rounded-lg bg-primary text-bg text-sm font-heading font-semibold hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Apply

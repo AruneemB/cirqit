@@ -229,8 +229,10 @@ async def circuit_builder(request: CircuitBuilderRequest):
     ]
 
     use_simple = _is_simple_command(request.text)
-    provider = "gemini" if use_simple else "openrouter"
-    model = "gemini-2.0-flash-exp" if use_simple else "anthropic/claude-3.5-sonnet"
+    simple_provider = os.getenv("COPILOT_SIMPLE_PROVIDER", DEFAULT_PROVIDER)
+    simple_model = os.getenv("COPILOT_SIMPLE_MODEL", DEFAULT_MODEL)
+    provider = simple_provider if use_simple else DEFAULT_PROVIDER
+    model = simple_model if use_simple else DEFAULT_MODEL
 
     try:
         result = await llm_gateway.complete_json(
@@ -251,6 +253,6 @@ async def circuit_builder(request: CircuitBuilderRequest):
         return CircuitPatchResponse(
             action="error",
             ops=[],
-            explanation=f"Could not interpret the request: {exc}",
+            explanation="Could not interpret the request. Please try rephrasing it.",
             confidence=0.0,
         )

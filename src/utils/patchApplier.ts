@@ -79,14 +79,28 @@ export function parsePatch(raw: unknown): CircuitPatch {
   if (!raw || typeof raw !== 'object') {
     throw new PatchError('Response is not a JSON object')
   }
+  if (Array.isArray(raw)) {
+    throw new PatchError('Patch must be an object, not an array')
+  }
 
   const obj = raw as Record<string, unknown>
-  const action = (obj.action as string) ?? 'patch_circuit'
-  const ops = Array.isArray(obj.ops) ? (obj.ops as PatchOp[]) : []
-  const explanation = typeof obj.explanation === 'string' ? obj.explanation : ''
-  const confidence = typeof obj.confidence === 'number' ? obj.confidence : 1.0
 
-  const patch: CircuitPatch = { action: action as CircuitPatch['action'], ops, explanation, confidence }
+  const action = obj.action
+  if (action !== 'patch_circuit' && action !== 'error') {
+    throw new PatchError(`Invalid patch action: "${action}". Must be "patch_circuit" or "error"`)
+  }
+
+  if (!Array.isArray(obj.ops)) {
+    throw new PatchError('patch.ops must be an array')
+  }
+
+  const confidence = typeof obj.confidence === 'number'
+    ? (Number.isFinite(obj.confidence) ? obj.confidence : 1.0)
+    : 1.0
+  const explanation = typeof obj.explanation === 'string' ? obj.explanation : ''
+  const ops = obj.ops as PatchOp[]
+
+  const patch: CircuitPatch = { action, ops, explanation, confidence }
 
   if (action === 'patch_circuit') {
     const errors = validatePatch(patch)

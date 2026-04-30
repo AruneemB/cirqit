@@ -338,6 +338,8 @@ export const useCircuitStore = create<CircuitState>()(
         },
 
         sendCopilotMessage: async (content) => {
+          if (get().copilot.isStreaming) return
+
           const userMsg: CopilotMessage = { id: uuidv4(), role: 'user', content }
           const placeholderId = uuidv4()
           const placeholder: CopilotMessage = {
@@ -422,7 +424,11 @@ export const useCircuitStore = create<CircuitState>()(
             } else if (op.op === 'remove_gate') {
               store.removeGate(op.gate_id)
             } else if (op.op === 'move_gate') {
-              store.updateGate(op.gate_id, { qubits: [op.to_qubit] })
+              const gate = get().circuit.gates.find((g) => g.id === op.gate_id)
+              if (gate) {
+                const offset = op.to_qubit - gate.qubits[0]
+                store.updateGate(op.gate_id, { qubits: gate.qubits.map((q) => q + offset) })
+              }
             } else if (op.op === 'set_param') {
               store.updateGate(op.gate_id, { params: op.params })
             } else if (op.op === 'set_observable') {

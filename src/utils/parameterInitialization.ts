@@ -11,7 +11,7 @@ function seededRandom(seed: number): () => number {
   let s = seed
   return () => {
     s = (s * 1664525 + 1013904223) & 0xffffffff
-    return (s >>> 0) / 0xffffffff
+    return (s >>> 0) / 0x100000000
   }
 }
 
@@ -37,11 +37,13 @@ export function initializeParameter(opts: InitOptions): number {
     }
 
     case 'xavier': {
+      if (fanIn + fanOut <= 0) throw new Error('fanIn + fanOut must be > 0 for Xavier initialization')
       const limit = Math.sqrt(6 / (fanIn + fanOut))
       return (rand() * 2 - 1) * limit
     }
 
     case 'he': {
+      if (fanIn <= 0) throw new Error('fanIn must be > 0 for He initialization')
       const r = opts.seed !== undefined ? seededRandom(opts.seed) : Math.random
       const std = Math.sqrt(2 / fanIn)
       return boxMullerNormal(r) * std
