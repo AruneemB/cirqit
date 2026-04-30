@@ -9,7 +9,7 @@ def generate_pennylane_code(circuit: Circuit) -> str:
 
     lines = [
         "import pennylane as qml",
-        "import numpy as np",
+        "from pennylane import numpy as np",
         "",
         f'dev = qml.device("default.qubit", wires={circuit.numQubits})',
         "",
@@ -40,7 +40,7 @@ def generate_pennylane_code(circuit: Circuit) -> str:
             "def cost_fn(params):",
             "    return circuit(params)",
             "",
-            f"params = np.array({initial_params})",
+            f"params = np.array({initial_params}, requires_grad=True)",
             "opt = qml.GradientDescentOptimizer(stepsize=0.4)",
             "",
             "# Training loop",
@@ -92,7 +92,11 @@ def _generate_gate_code(gate: Gate, param_idx: int) -> tuple[str, int]:
         return f"qml.Toffoli(wires=[{qubits[0]}, {qubits[1]}, {qubits[2]}])", param_idx
     elif g_type in ("RX", "RY", "RZ"):
         op = f"qml.R{g_type[1]}"
-        angle_comment = _format_angle(params[0]) if params else "0"
+        if not params:
+            angle_comment = "0"
+            code = f"{op}(0.0, wires={qubits[0]})  # {angle_comment}"
+            return code, param_idx
+        angle_comment = _format_angle(params[0])
         code = f"{op}(params[{param_idx}], wires={qubits[0]})  # {angle_comment}"
         return code, param_idx + 1
     else:
