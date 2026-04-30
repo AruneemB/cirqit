@@ -172,3 +172,23 @@ export async function sendCopilotChat(request: CopilotChatRequest): Promise<Copi
 
   return response.json()
 }
+
+export interface CircuitBuilderRequest {
+  text: string
+  circuit: Circuit
+}
+
+export async function buildCircuitFromNL(request: CircuitBuilderRequest): Promise<CircuitPatch> {
+  const response = await fetch(`${API_BASE_URL}/api/copilot/circuit-builder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Circuit builder failed', response.status, error)
+  }
+
+  return response.json()
+}

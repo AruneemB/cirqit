@@ -3,6 +3,7 @@ import { devtools, persist } from 'zustand/middleware'
 import { Circuit, Gate, ExecutionResult } from '../types/circuit'
 import { Parameter, ParameterMapping } from '../types/parameter'
 import { Observable } from '../types/observable'
+import { CircuitPatch, PatchOp } from '../types/patch'
 import { v4 as uuidv4 } from 'uuid'
 import { serializeCircuitContext } from '../utils/contextSerializer'
 import { startTrainingJob, createTrainingStream, sendCopilotChat } from '../services/api'
@@ -69,6 +70,9 @@ interface CircuitState {
   sendCopilotMessage: (content: string) => Promise<void>
   toggleCopilot: () => void
   clearCopilot: () => void
+
+  // Natural language circuit builder
+  applyCircuitPatch: (patch: CircuitPatch) => string
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -396,6 +400,27 @@ export const useCircuitStore = create<CircuitState>()(
               isStreaming: false,
             },
           }))
+        },
+
+        applyCircuitPatch: (patch) => {
+          if (patch.action === 'error') {
+            throw new Error(patch.explanation || 'Circuit patch returned an error')
+          }
+          const store = get()
+          for (const op of patch.ops as PatchOp[]) {
+            if (op.op === 'add_gate') {
+              store.addGate({ type: op.type, qubits: op.qubits, params: op.params, position: { x: 0, y: 0 } })
+            } else if (op.op === 'remove_gate') {
+              store.removeGate(op.gate_id)
+            } else if (op.op === 'move_gate') {
+              store.updateGate(op.gate_id, { qubits: [op.to_qubit] })
+            } else if (op.op === 'set_param') {
+              store.updateGate(op.gate_id, { params: op.params })
+            } else if (op.op === 'set_observable') {
+              store.setObservable(op.observable)
+            }
+          }
+          return patch.explanation
         },
       }),
       { name: 'CircuitStore' }
