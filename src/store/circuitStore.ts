@@ -3,9 +3,24 @@ import { devtools, persist } from 'zustand/middleware'
 import { Circuit, Gate, ExecutionResult } from '../types/circuit'
 import { Parameter, ParameterMapping } from '../types/parameter'
 import { Observable } from '../types/observable'
+import { CircuitPatch, PatchOp } from '../types/patch'
 import { v4 as uuidv4 } from 'uuid'
 import { serializeCircuitContext } from '../utils/contextSerializer'
-import { startTrainingJob, createTrainingStream } from '../services/api'
+import { startTrainingJob, createTrainingStream, sendCopilotChat } from '../services/api'
+
+export interface CopilotMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  isStreaming?: boolean
+}
+
+interface CopilotState {
+  conversationId: string | null
+  messages: CopilotMessage[]
+  isStreaming: boolean
+  isOpen: boolean
+}
 
 interface TrainingState {
   jobId: string | null
@@ -49,6 +64,19 @@ interface CircuitState {
   startTraining: (config?: { learningRate?: number; maxIterations?: number }) => Promise<void>
   stopTraining: () => void
   updateTrainingProgress: (progress: { current: number; total: number; loss: number }) => void
+
+  // Copilot state + actions
+  copilot: CopilotState
+  sendCopilotMessage: (content: string) => Promise<void>
+  toggleCopilot: () => void
+  clearCopilot: () => void
+
+  // Natural language circuit builder
+  applyCircuitPatch: (patch: CircuitPatch) => string
+
+  // Learning mode
+  learningMode: boolean
+  toggleLearningMode: () => void
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -69,12 +97,19 @@ export const useCircuitStore = create<CircuitState>()(
         parameters: {},
         parameterMappings: [],
         observable: null,
+        learningMode: false,
         training: {
           jobId: null,
           isTraining: false,
           lossHistory: [],
           currentIteration: 0,
           totalIterations: 0,
+        },
+        copilot: {
+          conversationId: null,
+          messages: [],
+          isStreaming: false,
+          isOpen: false,
         },
 
         setNumQubits: (num) =>
@@ -300,6 +335,101 @@ export const useCircuitStore = create<CircuitState>()(
               lossHistory: [...state.training.lossHistory, progress.loss],
             },
           }))
+        },
+
+        sendCopilotMessage: async (content) => {
+          const userMsg: CopilotMessage = { id: uuidv4(), role: 'user', content }
+          const placeholderId = uuidv4()
+          const placeholder: CopilotMessage = {
+            id: placeholderId,
+            role: 'assistant',
+            content: '',
+            isStreaming: true,
+          }
+
+          set((state) => ({
+            copilot: {
+              ...state.copilot,
+              isStreaming: true,
+              messages: [...state.copilot.messages, userMsg, placeholder],
+            },
+          }))
+
+          try {
+            const circuit = get().circuit
+            const response = await sendCopilotChat({
+              message: content,
+              conversation_id: get().copilot.conversationId,
+              circuit_context: { numQubits: circuit.numQubits, gates: circuit.gates },
+            })
+
+            set((state) => ({
+              copilot: {
+                ...state.copilot,
+                conversationId: response.conversation_id,
+                isStreaming: false,
+                messages: state.copilot.messages.map((m) =>
+                  m.id === placeholderId
+                    ? { ...m, content: response.message.content, isStreaming: false }
+                    : m
+                ),
+              },
+            }))
+          } catch {
+            set((state) => ({
+              copilot: {
+                ...state.copilot,
+                isStreaming: false,
+                messages: state.copilot.messages.map((m) =>
+                  m.id === placeholderId
+                    ? { ...m, content: 'Sorry, I could not reach the backend. Please try again.', isStreaming: false }
+                    : m
+                ),
+              },
+            }))
+          }
+        },
+
+        toggleCopilot: () => {
+          set((state) => ({
+            copilot: { ...state.copilot, isOpen: !state.copilot.isOpen },
+          }))
+        },
+
+        clearCopilot: () => {
+          set((state) => ({
+            copilot: {
+              ...state.copilot,
+              conversationId: null,
+              messages: [],
+              isStreaming: false,
+            },
+          }))
+        },
+
+        toggleLearningMode: () => {
+          set((state) => ({ learningMode: !state.learningMode }))
+        },
+
+        applyCircuitPatch: (patch) => {
+          if (patch.action === 'error') {
+            throw new Error(patch.explanation || 'Circuit patch returned an error')
+          }
+          const store = get()
+          for (const op of patch.ops as PatchOp[]) {
+            if (op.op === 'add_gate') {
+              store.addGate({ type: op.type, qubits: op.qubits, params: op.params, position: { x: 0, y: 0 } })
+            } else if (op.op === 'remove_gate') {
+              store.removeGate(op.gate_id)
+            } else if (op.op === 'move_gate') {
+              store.updateGate(op.gate_id, { qubits: [op.to_qubit] })
+            } else if (op.op === 'set_param') {
+              store.updateGate(op.gate_id, { params: op.params })
+            } else if (op.op === 'set_observable') {
+              store.setObservable(op.observable)
+            }
+          }
+          return patch.explanation
         },
       }),
       { name: 'CircuitStore' }

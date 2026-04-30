@@ -2,11 +2,13 @@ import React, { useState } from 'react'
 import { useCircuitStore } from '../store/circuitStore'
 import { LossCurveChart } from './LossCurveChart'
 import { ParameterSlider } from './ParameterSlider'
+import { ParameterInitModal } from './ParameterInitModal'
 
 export const TrainingDashboard: React.FC = () => {
   const { parameters, training, startTraining, stopTraining, updateParameter } = useCircuitStore()
   const [learningRate, setLearningRate] = useState(0.01)
   const [maxIter, setMaxIter] = useState(100)
+  const [showInitModal, setShowInitModal] = useState(false)
 
   const isTraining = training.isTraining
   const lossHistory = training.lossHistory
@@ -57,16 +59,36 @@ export const TrainingDashboard: React.FC = () => {
       </div>
 
       {/* Controls */}
-      <button
-        onClick={isTraining ? stopTraining : handleStart}
-        className={`w-full py-3 rounded-lg font-heading font-bold transition-all ${
-          isTraining
-            ? 'bg-error/20 text-error border border-error/50 hover:bg-error/30'
-            : 'bg-primary text-bg hover:shadow-[0_0_20px_rgba(0,217,255,0.4)]'
-        }`}
-      >
-        {isTraining ? 'Stop Training' : 'Initialize Optimization'}
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowInitModal(true)}
+          disabled={isTraining}
+          className="flex-none px-4 py-3 rounded-lg border border-white/8 text-sm text-text-secondary hover:text-text-primary hover:border-primary/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Initialize Parameters"
+        >
+          Init Params
+        </button>
+        <button
+          onClick={isTraining ? stopTraining : handleStart}
+          className={`flex-1 py-3 rounded-lg font-heading font-bold transition-all ${
+            isTraining
+              ? 'bg-error/20 text-error border border-error/50 hover:bg-error/30'
+              : 'bg-primary text-bg hover:shadow-[0_0_20px_rgba(0,217,255,0.4)]'
+          }`}
+        >
+          {isTraining ? 'Stop Training' : 'Initialize Optimization'}
+        </button>
+      </div>
+
+      {showInitModal && (
+        <ParameterInitModal
+          parameterNames={Object.keys(parameters).filter((n) => parameters[n].isTrainable)}
+          onApply={(values) => {
+            Object.entries(values).forEach(([name, val]) => updateParameter(name, val))
+          }}
+          onClose={() => setShowInitModal(false)}
+        />
+      )}
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-4">

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Observable, PauliTerm, PauliString } from '../types/observable'
+import { ObservablePresetModal } from './ObservablePresetModal'
 
 interface ObservableBuilderProps {
   numQubits: number
@@ -16,6 +17,7 @@ export const ObservableBuilder: React.FC<ObservableBuilderProps> = ({
     coefficient: 1.0,
     paulis: Array(numQubits).fill('I'),
   })
+  const [presetModalOpen, setPresetModalOpen] = useState(false)
 
   useEffect(() => {
     setNewTerm((prev) => ({
@@ -58,9 +60,21 @@ export const ObservableBuilder: React.FC<ObservableBuilderProps> = ({
 
   return (
     <div className="bg-surface/40 backdrop-blur-xl border border-white/8 rounded-lg p-4">
-      <h3 className="text-lg font-heading font-semibold text-text-primary mb-4">
-        Observable (Hamiltonian)
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-heading font-semibold text-text-primary">
+          Observable (Hamiltonian)
+        </h3>
+        <button
+          onClick={() => setPresetModalOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-violet-soft/25 text-text-secondary hover:border-primary/40 hover:text-primary rounded-lg transition-all"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M4 6h16M4 10h16M4 14h8M4 18h8" />
+          </svg>
+          Load Preset
+        </button>
+      </div>
 
       {/* Existing terms */}
       <div className="space-y-2 mb-4">
@@ -162,6 +176,12 @@ export const ObservableBuilder: React.FC<ObservableBuilderProps> = ({
                 .join(' ')}
         </div>
       </div>
+      <ObservablePresetModal
+        isOpen={presetModalOpen}
+        onClose={() => setPresetModalOpen(false)}
+        onSelect={(obs) => onChange({ ...obs, name: observable.name })}
+        numQubits={numQubits}
+      />
     </div>
   )
 }

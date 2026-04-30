@@ -38,11 +38,29 @@ export async function executeStatevector(circuit: Circuit): Promise<ExecutionRes
   return response.json()
 }
 
-export async function exportQiskitCode(circuit: Circuit): Promise<CodeExportResponse> {
+export async function exportQiskitCode(
+  circuit: Circuit,
+  includeNarration = false
+): Promise<CodeExportResponse> {
   const response = await fetch(`${API_BASE_URL}/api/export/qiskit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(circuit),
+    body: JSON.stringify({ circuit, include_narration: includeNarration }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Export failed', response.status, error)
+  }
+
+  return response.json()
+}
+
+export async function exportPennyLaneCode(circuit: Circuit): Promise<CodeExportResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/export/pennylane`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ circuit }),
   })
 
   if (!response.ok) {
@@ -132,4 +150,63 @@ export async function startTrainingJob(request: TrainingStartRequest): Promise<T
 
 export function createTrainingStream(jobId: string): EventSource {
   return new EventSource(`${API_BASE_URL}/api/training/stream/${encodeURIComponent(jobId)}`)
+}
+
+export interface CopilotChatRequest {
+  message: string
+  conversation_id?: string | null
+  circuit_context?: object | null
+}
+
+export interface CopilotMessageData {
+  id: string
+  role: string
+  content: string
+  timestamp?: string
+}
+
+export interface CopilotChatResponse {
+  conversation_id: string
+  message: CopilotMessageData
+  conversation: {
+    id: string
+    messages: CopilotMessageData[]
+    created_at: string
+    updated_at: string
+  }
+}
+
+export async function sendCopilotChat(request: CopilotChatRequest): Promise<CopilotChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/copilot/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Copilot chat failed', response.status, error)
+  }
+
+  return response.json()
+}
+
+export interface CircuitBuilderRequest {
+  text: string
+  circuit: Circuit
+}
+
+export async function buildCircuitFromNL(request: CircuitBuilderRequest): Promise<CircuitPatch> {
+  const response = await fetch(`${API_BASE_URL}/api/copilot/circuit-builder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new ApiError(error.detail || 'Circuit builder failed', response.status, error)
+  }
+
+  return response.json()
 }

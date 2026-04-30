@@ -1,11 +1,15 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
 
 from app.models.copilot import CopilotRequest, CopilotResponse, Conversation, Message
+from app.models.circuit import Circuit, CircuitPatchResponse
 from app.services.conversation_store import conversation_store
 from app.services.llm_gateway import llm_gateway
 
@@ -96,3 +100,157 @@ async def delete_conversation(conversation_id: str):
         raise HTTPException(status_code=404, detail="Conversation not found")
     await conversation_store.delete(conversation_id)
     return {"status": "deleted", "conversation_id": conversation_id}
+
+
+class CircuitBuilderRequest(BaseModel):
+    text: str
+    circuit: Circuit
+
+
+CIRCUIT_BUILDER_SYSTEM_PROMPT = """\
+You are Cirqit's natural language circuit builder. Convert the user's description \
+into a circuit patch JSON object. Reply ONLY with valid JSON — no markdown, no preamble.
+
+Supported gate types: H, X, Y, Z, S, T, Sdg, Tdg, CNOT, CZ, SWAP, Toffoli, RX, RY, RZ, U, U1, U2, U3
+
+Required response shape:
+{
+  "action": "patch_circuit",
+  "ops": [...],
+  "explanation": "one sentence",
+  "confidence": 0.95
+}
+
+If the request cannot be fulfilled use action "error" with empty ops and explain why.
+Set confidence to 1.0 when certain, 0.5-0.7 when ambiguous, <0.5 when very uncertain.
+
+--- FEW-SHOT EXAMPLES ---
+
+USER: create a Bell state on qubits 0 and 1
+ASSISTANT:
+{
+  "action": "patch_circuit",
+  "ops": [
+    {"op": "add_gate", "type": "H", "qubits": [0]},
+    {"op": "add_gate", "type": "CNOT", "qubits": [0, 1]}
+  ],
+  "explanation": "Added H on q0 then CNOT(0,1) to produce a Bell state |Φ+⟩.",
+  "confidence": 1.0
+}
+
+USER: add an RY gate with angle pi/4 to qubit 2
+ASSISTANT:
+{
+  "action": "patch_circuit",
+  "ops": [
+    {"op": "add_gate", "type": "RY", "qubits": [2], "params": [0.7853981633974483]}
+  ],
+  "explanation": "Added RY(π/4) on qubit 2.",
+  "confidence": 1.0
+}
+
+USER: remove the gate with id abc-123
+ASSISTANT:
+{
+  "action": "patch_circuit",
+  "ops": [
+    {"op": "remove_gate", "gate_id": "abc-123"}
+  ],
+  "explanation": "Removed gate abc-123.",
+  "confidence": 1.0
+}
+
+USER: set the parameter of gate abc-123 to pi/2
+ASSISTANT:
+{
+  "action": "patch_circuit",
+  "ops": [
+    {"op": "set_param", "gate_id": "abc-123", "params": [1.5707963267948966]}
+  ],
+  "explanation": "Updated gate abc-123 parameter to π/2.",
+  "confidence": 0.9
+}
+
+USER: build a GHZ state on 3 qubits
+ASSISTANT:
+{
+  "action": "patch_circuit",
+  "ops": [
+    {"op": "add_gate", "type": "H", "qubits": [0]},
+    {"op": "add_gate", "type": "CNOT", "qubits": [0, 1]},
+    {"op": "add_gate", "type": "CNOT", "qubits": [1, 2]}
+  ],
+  "explanation": "Added H on q0 and two CNOTs to prepare the 3-qubit GHZ state.",
+  "confidence": 1.0
+}
+
+USER: teleport qubit
+ASSISTANT:
+{
+  "action": "error",
+  "ops": [],
+  "explanation": "Quantum teleportation requires classical communication which cannot be expressed as a gate-only circuit patch. Please build the circuit manually.",
+  "confidence": 0.0
+}
+--- END EXAMPLES ---
+"""
+
+SIMPLE_PATTERNS = [
+    r"add .* gate",
+    r"apply .*",
+    r"put .* on qubit",
+    r"place .* on",
+    r"insert .*gate",
+    r"remove .* gate",
+    r"delete .* gate",
+]
+
+
+def _is_simple_command(text: str) -> bool:
+    return any(re.search(p, text.lower()) for p in SIMPLE_PATTERNS)
+
+
+@router.post("/circuit-builder", response_model=CircuitPatchResponse)
+async def circuit_builder(request: CircuitBuilderRequest):
+    """Convert natural language to a circuit patch using few-shot prompted LLM (spec §12)."""
+    circuit_summary = {
+        "numQubits": request.circuit.numQubits,
+        "gateCount": len(request.circuit.gates),
+        "gates": [
+            {"id": g.id, "type": g.type, "qubits": g.qubits, "params": g.params}
+            for g in request.circuit.gates
+        ],
+    }
+    system = CIRCUIT_BUILDER_SYSTEM_PROMPT + "\n\nCURRENT CIRCUIT:\n" + json.dumps(circuit_summary, separators=(",", ":"))
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": request.text},
+    ]
+
+    use_simple = _is_simple_command(request.text)
+    provider = "gemini" if use_simple else "openrouter"
+    model = "gemini-2.0-flash-exp" if use_simple else "anthropic/claude-3.5-sonnet"
+
+    try:
+        result = await llm_gateway.complete_json(
+            messages=messages,
+            provider=provider,
+            model=model,
+            temperature=0.2,
+            max_tokens=800,
+        )
+        return CircuitPatchResponse(
+            action=result.get("action", "error"),
+            ops=result.get("ops", []),
+            explanation=result.get("explanation", ""),
+            confidence=float(result.get("confidence", 0.0)),
+        )
+    except Exception as exc:
+        logger.exception("Circuit builder LLM error: %s", exc)
+        return CircuitPatchResponse(
+            action="error",
+            ops=[],
+            explanation=f"Could not interpret the request: {exc}",
+            confidence=0.0,
+        )

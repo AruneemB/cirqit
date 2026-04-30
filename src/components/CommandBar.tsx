@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useCircuitStore } from '../store/circuitStore'
-import { buildCircuit } from '../services/api'
+import { buildCircuitFromNL } from '../services/api'
 import { applyPatch } from '../services/circuitPatch'
 import { CircuitPatch } from '../types/circuit'
 
@@ -42,7 +42,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({ isOpen, onClose }) => {
     setError(null)
 
     try {
-      const patch = await buildCircuit(text.trim(), circuit)
+      const patch = await buildCircuitFromNL({ text: text.trim(), circuit })
 
       if (patch.action === 'error') {
         setError(patch.explanation)

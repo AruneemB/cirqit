@@ -1,5 +1,44 @@
+import logging
 import math
 from app.models.circuit import Circuit, Gate
+
+logger = logging.getLogger(__name__)
+
+_NARRATION_SYSTEM_PROMPT = (
+    "You annotate quantum circuit code with explanatory comments. "
+    "Explain physical and quantum-mechanical significance, not syntax. "
+    "Insert one comment above each gate operation explaining its role in the circuit. "
+    "Return annotated code only — no markdown, no backticks, no preamble."
+)
+
+
+async def narrate_qiskit_code(code: str, circuit: Circuit) -> str:
+    """Add LLM-generated inline comments to Qiskit code via DeepSeek Coder."""
+    from app.services.llm_gateway import llm_gateway
+
+    summary = f"{circuit.numQubits}-qubit, {len(circuit.gates)}-gate circuit named '{circuit.name}'"
+    user_prompt = (
+        f"Add inline comments to this {summary} Qiskit code. "
+        "Each comment must explain the quantum-mechanical WHY of the operation — "
+        "not restate the function call name.\n\n"
+        f"CODE:\n{code}\n\n"
+        "Return commented code only — no preamble, no backticks."
+    )
+
+    try:
+        return await llm_gateway.complete(
+            messages=[
+                {"role": "system", "content": _NARRATION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            provider="openrouter",
+            model="deepseek/deepseek-coder",
+            temperature=0.3,
+            max_tokens=2000,
+        )
+    except Exception:
+        logger.warning("Code narration failed — returning plain generated code")
+        return code
 
 
 def generate_qiskit_code(circuit: Circuit) -> str:

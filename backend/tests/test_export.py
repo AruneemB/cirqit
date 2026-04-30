@@ -20,7 +20,9 @@ async def test_bell_state_export():
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/api/export/qiskit", json=circuit_data)
+        response = await client.post(
+            "/api/export/qiskit", json={"circuit": circuit_data, "include_narration": False}
+        )
 
     assert response.status_code == 200
     result = response.json()
@@ -52,7 +54,9 @@ async def test_parameterized_gate_export():
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/api/export/qiskit", json=circuit_data)
+        response = await client.post(
+            "/api/export/qiskit", json={"circuit": circuit_data, "include_narration": False}
+        )
 
     assert response.status_code == 200
     result = response.json()
