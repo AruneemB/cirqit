@@ -27,10 +27,14 @@ def initialize_parameter(
         return rng.gauss(0.0, 0.1)
 
     elif strategy == 'xavier':
+        if fan_in + fan_out <= 0:
+            raise ValueError("fan_in + fan_out must be > 0 for Xavier initialization")
         limit = math.sqrt(6.0 / (fan_in + fan_out))
         return rng.uniform(-limit, limit)
 
     elif strategy == 'he':
+        if fan_in <= 0:
+            raise ValueError("fan_in must be > 0 for He initialization")
         std = math.sqrt(2.0 / fan_in)
         return rng.gauss(0.0, std)
 
@@ -40,7 +44,7 @@ def initialize_parameter(
     elif strategy == 'identity':
         return math.pi / 2
 
-    return 0.0
+    raise ValueError(f"Unknown initialization strategy: {strategy}")
 
 
 def initialize_parameters(
