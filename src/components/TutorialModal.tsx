@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Tutorial, tutorials } from '../data/learningContent'
 
 interface TutorialModalProps {
@@ -10,6 +10,13 @@ interface TutorialModalProps {
 export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose, initialTutorialId }) => {
   const [selectedId, setSelectedId] = useState<string | null>(initialTutorialId ?? null)
   const [stepIndex, setStepIndex] = useState(0)
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedId(initialTutorialId ?? null)
+      setStepIndex(0)
+    }
+  }, [isOpen, initialTutorialId])
 
   if (!isOpen) return null
 
