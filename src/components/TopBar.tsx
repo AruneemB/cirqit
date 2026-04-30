@@ -76,7 +76,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onCommandBarOpen }) => {
         </div>
       </header>
 
-      <TutorialModal isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+      <TutorialModal isOpen={learningMode && tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </>
   )
 }
