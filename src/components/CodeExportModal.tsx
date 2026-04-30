@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useCircuitStore } from '../store/circuitStore'
-import { exportQiskitCode, narrateCode } from '../services/api'
+import { exportQiskitCode } from '../services/api'
 
 interface CodeExportModalProps {
   isOpen: boolean
@@ -13,7 +13,6 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
   const circuit = useCircuitStore((state) => state.circuit)
   const [code, setCode] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isNarrating, setIsNarrating] = useState(false)
   const [addNarration, setAddNarration] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -26,21 +25,8 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
   const fetchCode = async (withNarration = addNarration) => {
     setIsLoading(true)
     try {
-      const result = await exportQiskitCode(circuit)
-      if (withNarration) {
-        setIsLoading(false)
-        setIsNarrating(true)
-        try {
-          const narrated = await narrateCode(result.code, result.language)
-          setCode(narrated.annotated_code)
-        } catch {
-          setCode(result.code)
-        } finally {
-          setIsNarrating(false)
-        }
-      } else {
-        setCode(result.code)
-      }
+      const result = await exportQiskitCode(circuit, withNarration)
+      setCode(result.code)
     } catch (error) {
       alert('Export failed: ' + (error as Error).message)
     } finally {
@@ -88,10 +74,10 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[60vh]">
-          {isLoading || isNarrating ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-text-secondary">
-                {isNarrating ? 'Adding quantum comments...' : 'Generating code...'}
+                {addNarration ? 'Generating annotated code...' : 'Generating code...'}
               </div>
             </div>
           ) : (

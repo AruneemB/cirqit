@@ -38,11 +38,14 @@ export async function executeStatevector(circuit: Circuit): Promise<ExecutionRes
   return response.json()
 }
 
-export async function exportQiskitCode(circuit: Circuit): Promise<CodeExportResponse> {
+export async function exportQiskitCode(
+  circuit: Circuit,
+  includeNarration = false
+): Promise<CodeExportResponse> {
   const response = await fetch(`${API_BASE_URL}/api/export/qiskit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(circuit),
+    body: JSON.stringify({ circuit, include_narration: includeNarration }),
   })
 
   if (!response.ok) {
