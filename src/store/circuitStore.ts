@@ -73,6 +73,10 @@ interface CircuitState {
 
   // Natural language circuit builder
   applyCircuitPatch: (patch: CircuitPatch) => string
+
+  // Learning mode
+  learningMode: boolean
+  toggleLearningMode: () => void
 }
 
 const DEFAULT_CIRCUIT: Circuit = {
@@ -93,6 +97,7 @@ export const useCircuitStore = create<CircuitState>()(
         parameters: {},
         parameterMappings: [],
         observable: null,
+        learningMode: false,
         training: {
           jobId: null,
           isTraining: false,
@@ -400,6 +405,10 @@ export const useCircuitStore = create<CircuitState>()(
               isStreaming: false,
             },
           }))
+        },
+
+        toggleLearningMode: () => {
+          set((state) => ({ learningMode: !state.learningMode }))
         },
 
         applyCircuitPatch: (patch) => {
